@@ -77,7 +77,7 @@ export async function getCustomerOrderQuote(cart) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${session.token}`
+      Authorization: `Bearer ${session.access_token}`
     },
     body: JSON.stringify({
       action: "quote",
