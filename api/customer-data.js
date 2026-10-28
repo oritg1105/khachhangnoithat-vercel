@@ -22,6 +22,6 @@ module.exports = async function handler(request, response) {
     return response.status(200).json({ data: Object.fromEntries(entries) });
   } catch (error) {
     console.error("Customer storefront catalog request failed:", error.message);
-    return response.status(error.status || 502).json({ error: error.message });
+    return response.status(error.status || 500).json({ error: error.message });
   }
 };

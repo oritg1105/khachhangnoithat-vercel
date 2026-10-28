@@ -27,7 +27,7 @@ async function loadAddresses(config, customerId) {
 async function loadOrders(config, customerId) {
   const orders = await customerDatabaseRequest(
     config,
-    `/rest/v1/hoadon?select=id_hoadon,ngaydat,dichigiaohang,ngaygiao,tongtien&id_khachhang=eq.${customerId}&order=id_hoadon.desc&limit=50`
+    `/rest/v1/hoadon?select=id_hoadon,ngaydat,dichigiaohang,ngaygiao,tongtien,trangthai&id_khachhang=eq.${customerId}&order=id_hoadon.desc&limit=50`
   );
   if (!orders?.length) return [];
   const ids = orders.map(order => Number(order.id_hoadon)).filter(Number.isInteger);
@@ -44,7 +44,11 @@ async function loadOrders(config, customerId) {
     address: order.dichigiaohang || "",
     deliveredAt: order.ngaygiao,
     total: Number(order.tongtien || 0),
-    status: order.ngaygiao ? "Đã giao" : "Chờ xác nhận",
+    status: Number(order.trangthai) === 0
+      ? "Đã hủy"
+      : Number(order.trangthai) === 2 || order.ngaygiao
+        ? "Đã hoàn thành"
+        : "Đang duyệt",
     items: (details || [])
       .filter(detail => Number(detail.id_hoadon) === Number(order.id_hoadon))
       .map(detail => ({
@@ -70,7 +74,10 @@ module.exports = async function handler(request, response) {
     context = await getAuthenticatedCustomer(request, config);
   } catch (error) {
     console.error("Customer account authorization failed:", error.message);
-    return response.status(statusFor(error)).json({ error: error.message });
+    return response.status(statusFor(error)).json({
+      error: error.message,
+      ...(error.code ? { code: error.code } : {})
+    });
   }
 
   const customerId = context.user.id;
@@ -118,6 +125,29 @@ module.exports = async function handler(request, response) {
       });
       if (!result?.[0]) return response.status(403).json({ error: "Không thể lưu địa chỉ giao hàng." });
       return response.status(201).json({ data: result[0] });
+    }
+
+    if (request.method === "PATCH" && action === "update-address") {
+      const currentAddress = String(request.body?.currentAddress || "").trim();
+      const address = String(request.body?.address || "").trim();
+      if (!currentAddress || address.length < 5 || address.length > 500) {
+        return response.status(400).json({ error: "Địa chỉ cần từ 5 đến 500 ký tự." });
+      }
+      const query = new URLSearchParams({
+        id_khachhang: `eq.${customerId}`,
+        dichi: `eq.${currentAddress}`
+      });
+      const result = await customerDatabaseRequest(
+        config,
+        `/rest/v1/diachigiaohang?${query}`,
+        {
+          method: "PATCH",
+          prefer: "return=representation",
+          body: { dichi: address }
+        }
+      );
+      if (!result?.length) return response.status(404).json({ error: "Không tìm thấy địa chỉ giao hàng cần sửa." });
+      return response.status(200).json({ data: result[0] });
     }
 
     if (request.method === "POST" && action === "delete-address") {

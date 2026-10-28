@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const {
-  createCustomerSession, createHttpError, customerDatabaseRequest,
+  createCustomerSession, createCustomerSessionError, createHttpError, customerDatabaseRequest,
   getCustomerConfig, signCustomerToken, statusFor, verifyCustomerToken
 } = require("../lib/customerSession.js");
 
@@ -67,6 +67,7 @@ module.exports = async function handler(request, response) {
     return response.status(405).json({ error: "Method Not Allowed" });
   }
 
+  const { action } = request.body || {};
   let config;
   try {
     config = getCustomerConfig();
@@ -74,7 +75,6 @@ module.exports = async function handler(request, response) {
     return response.status(500).json({ error: error.message });
   }
 
-  const { action } = request.body || {};
   try {
     if (action === "signup") {
       const { username, password } = validateCredentials(request.body?.username, request.body?.password);
@@ -154,9 +154,17 @@ module.exports = async function handler(request, response) {
       const refresh = verifyCustomerToken(request.body?.refreshToken, config.secret, "refresh");
       const account = await findCustomerAccount(config, refresh.username);
       if (!account || Number(account.id_khachhang) !== refresh.id) {
-        throw createHttpError(401, "Tài khoản không còn hợp lệ. Vui lòng đăng nhập lại.");
+        throw createCustomerSessionError(
+          401,
+          "Tài khoản trong token làm mới không khớp tài khoản khách hàng trong database.",
+          "CUSTOMER_ACCOUNT_NOT_LINKED"
+        );
       }
-      if (Number(account.trangthai) === 0) throw createHttpError(403, "Tài khoản khách hàng đã bị khóa.");
+      if (Number(account.trangthai) === 0) {
+        const error = createCustomerSessionError(403, "Tài khoản khách hàng đã bị khóa.");
+        error.code = "CUSTOMER_ACCOUNT_DISABLED";
+        throw error;
+      }
       const customers = await customerDatabaseRequest(
         config,
         `/rest/v1/khachhang?select=id_khachhang,email&id_khachhang=eq.${refresh.id}&limit=1`
@@ -175,7 +183,8 @@ module.exports = async function handler(request, response) {
       ? "Tên đăng nhập có thể đã được sử dụng. Hãy chọn tên khác."
       : error.message;
     return response.status(statusFor(error)).json({
-      error: message
+      error: message,
+      ...(error.code ? { code: error.code } : {})
     });
   }
 };

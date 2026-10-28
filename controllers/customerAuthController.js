@@ -11,15 +11,18 @@ function escapeHtml(value) {
 
 function renderAuthPage() {
   const title = isRegistering ? "Tạo tài khoản khách hàng" : "Đăng nhập khách hàng";
+  const sessionExpired = !isRegistering &&
+    new URLSearchParams(window.location.search).get("reason") === "session";
   root.innerHTML = `
-    <a class="customer-auth-brand" href="store.html">WOODCRAFT<span>NỘI THẤT GỖ</span></a>
+    <a class="customer-auth-brand" href="/">WOODCRAFT<span>NỘI THẤT GỖ</span></a>
     <section class="customer-auth-card" aria-labelledby="customer-auth-title">
-      <a class="customer-auth-back" href="store.html">← Quay lại cửa hàng</a>
+      <a class="customer-auth-back" href="/">← Quay lại cửa hàng</a>
       <div class="store-eyebrow">Tài khoản Woodcraft</div>
       <h1 id="customer-auth-title">${title}</h1>
       <p class="customer-auth-intro">${isRegistering
         ? "Tạo tên đăng nhập và mật khẩu để quản lý đơn hàng COD."
         : "Đăng nhập bằng tên đăng nhập để quản lý thông tin và đặt hàng COD."}</p>
+      ${sessionExpired ? `<p class="store-auth-notice" role="status">Phiên đăng nhập cũ không còn hợp lệ. Đăng nhập lại để tiếp tục thanh toán; không cần tạo secret mới.</p>` : ""}
       <form id="customer-auth-form">
         ${isRegistering ? `<label class="store-field"><span>Họ và tên</span><input name="fullName" autocomplete="name" maxlength="120" required></label>
           <label class="store-field"><span>Số điện thoại</span><input name="phone" type="tel" autocomplete="tel" maxlength="30"></label>
@@ -50,10 +53,11 @@ async function submitAuth(event) {
   try {
     if (isRegistering) {
       await signUpCustomer(values);
-      window.location.assign("store.html?account=setup");
+      window.location.assign("account.html");
     } else {
       await signInCustomer(values.username, values.password);
-      window.location.assign("store.html");
+      const next = new URLSearchParams(window.location.search).get("next");
+      window.location.assign(next === "checkout.html" ? "checkout.html" : "/");
     }
   } catch (error) {
     message.textContent = error.message;

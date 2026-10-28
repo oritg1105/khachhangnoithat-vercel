@@ -15,6 +15,7 @@ async function requestAccount(method, body) {
   if (!response.ok) {
     const error = new Error(payload.error || "Không thể tải thông tin tài khoản khách.");
     error.status = response.status;
+    error.code = payload.code;
     throw error;
   }
   return payload.data;
@@ -32,11 +33,15 @@ export function addCustomerAddress(address) {
   return requestAccount("POST", { action: "address", address });
 }
 
+export function updateCustomerAddress(currentAddress, address) {
+  return requestAccount("PATCH", { action: "update-address", currentAddress, address });
+}
+
 export function deleteCustomerAddress(address) {
   return requestAccount("POST", { action: "delete-address", address });
 }
 
-export async function placeCustomerOrder(cart, address) {
+export async function placeCustomerOrder(cart, address, expectedQuote) {
   const session = await getValidCustomerSession();
   if (!session) throw new Error("Vui lòng đăng nhập để đặt hàng.");
   const response = await fetch("/api/customer-checkout", {
@@ -47,6 +52,11 @@ export async function placeCustomerOrder(cart, address) {
     },
     body: JSON.stringify({
       address,
+      expectedTotal: expectedQuote?.total,
+      expectedItems: expectedQuote?.lines.map(item => ({
+        id_sanPham: item.id_sanpham,
+        soLuong: item.soluong
+      })),
       items: cart.map(item => ({ id_sanPham: item.id, soLuong: item.quantity }))
     })
   });
@@ -54,6 +64,31 @@ export async function placeCustomerOrder(cart, address) {
   if (!response.ok) {
     const error = new Error(payload.error || "Không thể tạo đơn hàng.");
     error.status = response.status;
+    error.code = payload.code;
+    throw error;
+  }
+  return payload.data;
+}
+
+export async function getCustomerOrderQuote(cart) {
+  const session = await getValidCustomerSession();
+  if (!session) throw new Error("Vui lòng đăng nhập để tiếp tục.");
+  const response = await fetch("/api/customer-checkout", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.token}`
+    },
+    body: JSON.stringify({
+      action: "quote",
+      items: cart.map(item => ({ id_sanPham: item.id, soLuong: item.quantity }))
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error || "Không thể tính giá và khuyến mãi.");
+    error.status = response.status;
+    error.code = payload.code;
     throw error;
   }
   return payload.data;

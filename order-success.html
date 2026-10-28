@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Tạo tài khoản khách hàng Woodcraft.">
-  <title>Đăng ký | Woodcraft</title>
+  <meta name="description" content="Xác nhận đơn hàng Woodcraft.">
+  <title>Đặt hàng thành công | Woodcraft</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="views/store.css">
-  <link rel="stylesheet" href="views/customer-auth.css">
 </head>
 <body>
-  <main class="customer-auth-shell" id="customer-auth-app" data-auth-mode="signup"></main>
-  <script type="module" src="controllers/customerAuthController.js"></script>
+  <main class="store-order-success" id="order-success" aria-live="polite">
+    <div class="store-eyebrow">Woodcraft · Xác nhận đơn hàng</div>
+    <p>Đang tải thông tin đơn hàng...</p>
+  </main>
+  <script type="module" src="controllers/orderSuccessController.js"></script>
 </body>
 </html>

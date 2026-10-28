@@ -10,7 +10,7 @@ export async function getStoreProducts() {
   const styles = data.KIEUDANG || [];
   const woods = data.LOAIGO || [];
   return (data.SANPHAM || [])
-    .filter(item => Number(item.trangthai ?? 1) === 1)
+    .filter(item => Number(item.trangthai ?? 1) === 1 && Number(item.soluong) > 0)
     .map(item => {
       const style = styles.find(entry => Number(entry.id_kieudang) === Number(item.id_kieudang)) || {};
       return {

@@ -2,7 +2,7 @@ const SESSION_KEY = "woodcraft-customer-auth";
 
 function saveSession(session) {
   if (!session?.access_token || !session?.refresh_token || !session?.user) {
-    throw new Error("Supabase không trả về phiên đăng nhập hợp lệ.");
+    throw new Error("Máy chủ không trả về phiên đăng nhập hợp lệ.");
   }
   const saved = {
     access_token: session.access_token,
@@ -34,6 +34,7 @@ async function requestAuth(body) {
   if (!response.ok) {
     const error = new Error(payload.error || "Không thể xác thực tài khoản.");
     error.status = response.status;
+    error.code = payload.code;
     throw error;
   }
   return saveSession(payload);
@@ -46,8 +47,15 @@ export async function getValidCustomerSession() {
   try {
     return await requestAuth({ action: "refresh", refreshToken: session.refresh_token });
   } catch (error) {
-    signOutCustomer();
-    throw new Error(`Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục. ${error.message}`);
+    if (error.code?.startsWith("CUSTOMER_SESSION_") ||
+        error.code === "CUSTOMER_ACCOUNT_NOT_LINKED" ||
+        error.code === "CUSTOMER_ACCOUNT_DISABLED") {
+      signOutCustomer();
+    }
+    const sessionError = new Error(`Không thể gia hạn phiên đăng nhập. ${error.message}`);
+    if (error.status) sessionError.status = error.status;
+    if (error.code) sessionError.code = error.code;
+    throw sessionError;
   }
 }
 
