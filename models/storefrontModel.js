@@ -1,4 +1,38 @@
 const CART_KEY = "woodcraft-customer-cart";
+const CART_UPDATED_AT_KEY = "woodcraft-customer-cart-updated-at";
+const CART_TTL_MS = 5 * 60 * 1000;
+let cartExpirationTimer;
+
+function clearStoredCart(notify = false) {
+  const hadCart = Boolean(localStorage.getItem(CART_KEY));
+  localStorage.removeItem(CART_KEY);
+  localStorage.removeItem(CART_UPDATED_AT_KEY);
+  clearTimeout(cartExpirationTimer);
+  if (notify && hadCart && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("woodcraft-cart-expired"));
+  }
+}
+
+function scheduleCartExpiration(updatedAt) {
+  clearTimeout(cartExpirationTimer);
+  const remaining = updatedAt + CART_TTL_MS - Date.now();
+  cartExpirationTimer = setTimeout(() => {
+    const storedUpdatedAt = Number(localStorage.getItem(CART_UPDATED_AT_KEY));
+    if (storedUpdatedAt !== updatedAt) return;
+    if (Date.now() - storedUpdatedAt >= CART_TTL_MS) {
+      clearStoredCart(true);
+    } else {
+      scheduleCartExpiration(storedUpdatedAt);
+    }
+  }, Math.max(0, remaining));
+}
+
+function normalizeCart(items) {
+  return items
+    .filter(item => Number.isInteger(Number(item.id)) &&
+      Number.isInteger(Number(item.quantity)) && Number(item.quantity) > 0)
+    .map(item => ({ id: Number(item.id), quantity: Number(item.quantity) }));
+}
 
 export async function getStoreProducts() {
   const response = await fetch("/api/customer-data");
@@ -38,21 +72,53 @@ export async function getStoreProducts() {
 
 export function readCart() {
   const stored = localStorage.getItem(CART_KEY);
-  if (!stored) return [];
+  if (!stored) {
+    localStorage.removeItem(CART_UPDATED_AT_KEY);
+    clearTimeout(cartExpirationTimer);
+    return [];
+  }
   try {
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) throw new Error("Giỏ hàng không hợp lệ.");
-    return parsed
-      .filter(item => Number.isInteger(Number(item.id)) && Number.isInteger(Number(item.quantity)) && Number(item.quantity) > 0)
-      .map(item => ({ id: Number(item.id), quantity: Number(item.quantity) }));
+    const cart = normalizeCart(parsed);
+    if (!cart.length) {
+      localStorage.removeItem(CART_UPDATED_AT_KEY);
+      clearTimeout(cartExpirationTimer);
+      return [];
+    }
+    let updatedAt = Number(localStorage.getItem(CART_UPDATED_AT_KEY));
+    if (!Number.isFinite(updatedAt) || updatedAt <= 0) {
+      updatedAt = Date.now();
+      localStorage.setItem(CART_UPDATED_AT_KEY, String(updatedAt));
+    }
+    if (Date.now() - updatedAt >= CART_TTL_MS) {
+      clearStoredCart();
+      return [];
+    }
+    scheduleCartExpiration(updatedAt);
+    return cart;
   } catch {
-    localStorage.removeItem(CART_KEY);
+    clearStoredCart();
     return [];
   }
 }
 
 export function saveCart(cart) {
-  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  const normalizedCart = normalizeCart(cart);
+  const serializedCart = JSON.stringify(normalizedCart);
+  const previousCart = localStorage.getItem(CART_KEY);
+  localStorage.setItem(CART_KEY, serializedCart);
+  if (!normalizedCart.length) {
+    localStorage.removeItem(CART_UPDATED_AT_KEY);
+    clearTimeout(cartExpirationTimer);
+    return;
+  }
+  let updatedAt = Number(localStorage.getItem(CART_UPDATED_AT_KEY));
+  if (previousCart !== serializedCart || !Number.isFinite(updatedAt) || updatedAt <= 0) {
+    updatedAt = Date.now();
+    localStorage.setItem(CART_UPDATED_AT_KEY, String(updatedAt));
+  }
+  scheduleCartExpiration(updatedAt);
 }
 
 export function getCartDetails(cart, products) {

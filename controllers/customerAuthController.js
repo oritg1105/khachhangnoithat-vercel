@@ -20,8 +20,8 @@ function renderAuthPage() {
       <div class="store-eyebrow">Tài khoản Woodcraft</div>
       <h1 id="customer-auth-title">${title}</h1>
       <p class="customer-auth-intro">${isRegistering
-        ? "Tạo tên đăng nhập và mật khẩu để quản lý đơn hàng COD."
-        : "Đăng nhập bằng tên đăng nhập để quản lý thông tin và đặt hàng COD."}</p>
+      ? "Tạo tên đăng nhập và mật khẩu để quản lý đơn hàng COD."
+      : "Đăng nhập bằng tên đăng nhập để quản lý thông tin và đặt hàng COD."}</p>
       ${sessionExpired ? `<p class="store-auth-notice" role="status">Phiên đăng nhập cũ không còn hợp lệ. Đăng nhập lại để tiếp tục thanh toán; không cần tạo secret mới.</p>` : ""}
       <form id="customer-auth-form">
         ${isRegistering ? `<label class="store-field"><span>Họ và tên</span><input name="fullName" autocomplete="name" maxlength="120" required></label>
@@ -31,12 +31,11 @@ function renderAuthPage() {
           <label class="store-field"><span>Tên đăng nhập</span><input name="username" autocomplete="username" minlength="3" maxlength="40" required></label>`}
         <label class="store-field"><span>Mật khẩu</span><input name="password" type="password" autocomplete="${isRegistering ? "new-password" : "current-password"}" minlength="8" maxlength="128" required></label>
         <button class="store-button customer-auth-submit" type="submit">${isRegistering ? "Đăng ký" : "Đăng nhập"}</button>
-        <p class="customer-auth-note">Hiện chưa hỗ trợ tự khôi phục mật khẩu. Hãy ghi nhớ mật khẩu.</p>
         <p class="store-form-message" id="customer-auth-message" role="alert" hidden></p>
       </form>
       <p class="customer-auth-switch">${isRegistering
-        ? `Đã có tài khoản? <a href="customer-login.html">Đăng nhập</a>`
-        : `Chưa có tài khoản? <a href="customer-register.html">Đăng ký</a>`}</p>
+      ? `Đã có tài khoản? <a href="customer-login.html">Đăng nhập</a>`
+      : `Chưa có tài khoản? <a href="customer-register.html">Đăng ký</a>`}</p>
     </section>`;
   document.querySelector("#customer-auth-form").addEventListener("submit", submitAuth);
 }

@@ -8,6 +8,10 @@ let cart = readCart();
 let searchText = "";
 let selectedCategory = "";
 let selectedWood = "";
+let selectedStyle = "";
+let minPrice = "";
+let maxPrice = "";
+let sortOrder = "";
 let toastTimer;
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({
@@ -45,39 +49,75 @@ function distinctValues(key) {
     .sort((left, right) => left.localeCompare(right, "vi"));
 }
 
+function normalizeSearchText(value) {
+  return String(value || "")
+    .toLocaleLowerCase("vi")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+}
+
+function hasInvalidPriceRange() {
+  const minimum = minPrice === "" ? null : Number(minPrice);
+  const maximum = maxPrice === "" ? null : Number(maxPrice);
+  return minimum !== null && maximum !== null && minimum > maximum;
+}
+
 function filteredProducts() {
-  const needle = searchText.toLocaleLowerCase("vi");
-  return products.filter(product => {
+  const terms = normalizeSearchText(searchText).split(/\s+/).filter(Boolean);
+  const minimum = minPrice === "" ? null : Number(minPrice);
+  const maximum = maxPrice === "" ? null : Number(maxPrice);
+  const invalidPriceRange = hasInvalidPriceRange();
+  const shown = products.filter(product => {
     const searchable = [product.name, product.id, product.category, product.wood, product.style, product.description]
-      .join(" ").toLocaleLowerCase("vi");
-    return (!needle || searchable.includes(needle)) &&
+      .join(" ");
+    const normalizedSearchable = normalizeSearchText(searchable);
+    return !invalidPriceRange && terms.every(term => normalizedSearchable.includes(term)) &&
       (!selectedCategory || product.category === selectedCategory) &&
-      (!selectedWood || product.wood === selectedWood);
+      (!selectedWood || product.wood === selectedWood) &&
+      (!selectedStyle || product.style === selectedStyle) &&
+      (minimum === null || product.price >= minimum) &&
+      (maximum === null || product.price <= maximum);
   });
+  const compareName = (left, right) => left.name.localeCompare(right.name, "vi");
+  if (sortOrder === "price-asc") shown.sort((left, right) => left.price - right.price || compareName(left, right));
+  if (sortOrder === "price-desc") shown.sort((left, right) => right.price - left.price || compareName(left, right));
+  if (sortOrder === "name-asc") shown.sort(compareName);
+  if (sortOrder === "stock-desc") shown.sort((left, right) => right.stock - left.stock || compareName(left, right));
+  return shown;
 }
 
 function renderProductCards() {
   const shown = filteredProducts();
   const categories = distinctValues("category");
   const woods = distinctValues("wood");
+  const styles = distinctValues("style");
   const categoryFilter = document.querySelector("#store-category");
   const woodFilter = document.querySelector("#store-wood");
+  const styleFilter = document.querySelector("#store-style");
   categoryFilter.innerHTML = `<option value="">Tất cả danh mục</option>${categories.map(value =>
     `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`
   ).join("")}`;
   woodFilter.innerHTML = `<option value="">Tất cả chất liệu</option>${woods.map(value =>
     `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`
   ).join("")}`;
+  styleFilter.innerHTML = `<option value="">Tất cả kiểu dáng</option>${styles.map(value =>
+    `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`
+  ).join("")}`;
   categoryFilter.value = selectedCategory;
   woodFilter.value = selectedWood;
-  document.querySelector("#store-result-count").textContent = `${shown.length} sản phẩm`;
+  styleFilter.value = selectedStyle;
+  document.querySelector("#store-sort").value = sortOrder;
+  document.querySelector("#store-result-count").textContent = hasInvalidPriceRange()
+    ? "Giá tối thiểu phải nhỏ hơn hoặc bằng giá tối đa"
+    : `${shown.length} sản phẩm`;
 
   document.querySelector("#store-products").innerHTML = shown.length ? shown.map(product => `
     <article class="store-card">
       <div class="store-card-image-wrap">
         ${product.image
-          ? `<img class="store-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy">`
-          : `<div class="store-image-placeholder">WOODCRAFT</div>`}
+      ? `<img class="store-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy">`
+      : `<div class="store-image-placeholder">WOODCRAFT</div>`}
         <span class="store-stock-badge ${product.stock < 1 ? "out" : ""}">${product.stock > 0 ? `Còn ${product.stock} sản phẩm` : "Tạm hết hàng"}</span>
       </div>
       <div class="store-card-body">
@@ -192,11 +232,26 @@ function renderPage() {
           <span class="store-result-count" id="store-result-count">Đang tải...</span>
         </div>
         <div class="store-toolbar">
-          <div class="store-eyebrow">Tìm món đồ phù hợp với bạn</div>
-          <div class="store-filters">
-            <input id="store-search" type="search" placeholder="Tìm tên sản phẩm..." aria-label="Tìm sản phẩm">
-            <select id="store-category" aria-label="Lọc theo loại sản phẩm"><option value="">Tất cả danh mục</option></select>
-            <select id="store-wood" aria-label="Lọc theo chất liệu"><option value="">Tất cả chất liệu</option></select>
+          <div class="store-eyebrow">Tìm kiếm sản phẩm</div>
+          <div class="store-search-fields">
+            <label class="store-field store-search-keyword"><span>Từ khóa</span>
+              <input id="store-search" type="search" placeholder="Tên, mã, mô tả, chất liệu...">
+            </label>
+            <label class="store-field"><span>Danh mục</span><select id="store-category"><option value="">Tất cả danh mục</option></select></label>
+            <label class="store-field"><span>Chất liệu</span><select id="store-wood"><option value="">Tất cả chất liệu</option></select></label>
+            <label class="store-field"><span>Kiểu dáng</span><select id="store-style"><option value="">Tất cả kiểu dáng</option></select></label>
+            <label class="store-field"><span>Giá từ (₫)</span><input id="store-min-price" type="number" min="0" step="1000" inputmode="numeric" placeholder="Không giới hạn"></label>
+            <label class="store-field"><span>Giá đến (₫)</span><input id="store-max-price" type="number" min="0" step="1000" inputmode="numeric" placeholder="Không giới hạn"></label>
+            <label class="store-field"><span>Sắp xếp</span>
+              <select id="store-sort">
+                <option value="">Mặc định</option>
+                <option value="price-asc">Giá thấp đến cao</option>
+                <option value="price-desc">Giá cao đến thấp</option>
+                <option value="name-asc">Tên A–Z</option>
+                <option value="stock-desc">Tồn kho nhiều nhất</option>
+              </select>
+            </label>
+            <button class="store-button secondary" id="store-clear-filters" type="button">Xóa bộ lọc</button>
           </div>
         </div>
         <div class="store-products" id="store-products" aria-live="polite"><p class="store-empty">Đang tải sản phẩm...</p></div>
@@ -219,8 +274,48 @@ function renderPage() {
     selectedWood = event.target.value;
     renderProductCards();
   });
+  document.querySelector("#store-style").addEventListener("change", event => {
+    selectedStyle = event.target.value;
+    renderProductCards();
+  });
+  document.querySelector("#store-min-price").addEventListener("input", event => {
+    minPrice = event.target.value;
+    renderProductCards();
+  });
+  document.querySelector("#store-max-price").addEventListener("input", event => {
+    maxPrice = event.target.value;
+    renderProductCards();
+  });
+  document.querySelector("#store-sort").addEventListener("change", event => {
+    sortOrder = event.target.value;
+    renderProductCards();
+  });
+  document.querySelector("#store-clear-filters").addEventListener("click", () => {
+    searchText = "";
+    selectedCategory = "";
+    selectedWood = "";
+    selectedStyle = "";
+    minPrice = "";
+    maxPrice = "";
+    sortOrder = "";
+    document.querySelector("#store-search").value = "";
+    document.querySelector("#store-min-price").value = "";
+    document.querySelector("#store-max-price").value = "";
+    renderProductCards();
+  });
   document.querySelector("#store-detail-dialog").addEventListener("click", event => {
     if (event.target === event.currentTarget) event.currentTarget.close();
+  });
+  window.addEventListener("storage", event => {
+    if (event.key === "woodcraft-customer-cart") {
+      cart = readCart();
+      renderCart();
+    }
+  });
+  window.addEventListener("woodcraft-cart-expired", () => {
+    cart = [];
+    renderCart();
+    showToast("Giỏ hàng đã được xóa sau 5 phút.");
   });
   renderCustomerHeader();
 }

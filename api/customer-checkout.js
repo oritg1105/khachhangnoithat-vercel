@@ -23,12 +23,13 @@ module.exports = async function handler(request, response) {
 
   const requestedItems = request.body?.items;
   const isQuoteRequest = request.body?.action === "quote";
-  const address = String(request.body?.address || "").trim();
+  const selectedPromotion = request.body?.selectedPromotion ?? null;
+  const addressId = Number(request.body?.addressId);
   if (!Array.isArray(requestedItems) || requestedItems.length < 1 || requestedItems.length > 30 ||
       requestedItems.some(item => !item || typeof item !== "object" ||
         !Number.isSafeInteger(Number(item.id_sanPham)) || Number(item.id_sanPham) < 1 ||
         !Number.isInteger(Number(item.soLuong)) || Number(item.soLuong) < 1 || Number(item.soLuong) > 100) ||
-      (!isQuoteRequest && (address.length < 5 || address.length > 500))) {
+      (!isQuoteRequest && (!Number.isSafeInteger(addressId) || addressId < 1))) {
     return response.status(400).json({ error: "Giỏ hàng hoặc địa chỉ giao hàng không hợp lệ." });
   }
   const quantities = new Map();
@@ -77,8 +78,22 @@ module.exports = async function handler(request, response) {
   }
 
   let reservedProducts = [];
+  let reservedVoucher = null;
   let orderId = null;
   try {
+    if (!isQuoteRequest) {
+      const addressQuery = new URLSearchParams({
+        select: "id_diachi,id_khachhang,tinhthanh,phuongxa,duong",
+        id_diachi: `eq.${addressId}`,
+        id_khachhang: `eq.${context.user.id}`,
+        limit: "1"
+      });
+      const addresses = await customerDatabaseRequest(config, `/rest/v1/diachigiaohang?${addressQuery}`);
+      if (!addresses?.[0]) {
+        throw createHttpError(400, "Địa chỉ giao hàng không tồn tại trong tài khoản này.");
+      }
+    }
+
     const productIds = items.map(item => item.id_sanpham).sort((left, right) => left - right);
     const productQuery = new URLSearchParams({
       select: "id_sanpham,dongia,soluong,trangthai",
@@ -98,7 +113,7 @@ module.exports = async function handler(request, response) {
       return { ...item, price, stock };
     });
 
-    const quote = await buildPromotionQuote(config, orderLines);
+    const quote = await buildPromotionQuote(config, orderLines, selectedPromotion);
     if (!Number.isSafeInteger(quote.total) || !Number.isSafeInteger(quote.subtotal)) {
       throw createHttpError(400, "Tổng tiền đơn hàng vượt quá giới hạn hợp lệ.");
     }
@@ -111,6 +126,16 @@ module.exports = async function handler(request, response) {
           totalDiscount: quote.totalDiscount,
           total: quote.total,
           invoicePromotionName: quote.invoicePromotionName,
+          selectedPromotion: quote.selectedPromotion,
+          selectedPromotionName: quote.selectedPromotionName,
+          promotions: quote.promotionOptions.map(promotion => ({
+            type: promotion.type,
+            id: promotion.id,
+            name: promotion.name,
+            description: promotion.description,
+            discount: promotion.discount,
+            ...(promotion.available === undefined ? {} : { available: promotion.available })
+          })),
           lines: quote.lines.map(item => ({
             id_sanpham: item.id_sanpham,
             soluong: item.soluong,
@@ -125,6 +150,37 @@ module.exports = async function handler(request, response) {
     if (request.body?.expectedTotal !== undefined &&
         (!Number.isSafeInteger(Number(request.body.expectedTotal)) || Number(request.body.expectedTotal) !== quote.total)) {
       throw createHttpError(409, "Giá hoặc khuyến mãi vừa thay đổi. Vui lòng tải lại trang thanh toán để xác nhận lại.");
+    }
+    if (request.body?.expectedPromotion !== undefined &&
+        JSON.stringify(request.body.expectedPromotion) !== JSON.stringify(quote.selectedPromotion)) {
+      throw createHttpError(409, "Lựa chọn khuyến mãi vừa thay đổi. Vui lòng tải lại trang thanh toán.");
+    }
+
+    if (quote.voucherId) {
+      const selectedVoucher = quote.promotionOptions.find(
+        promotion => promotion.type === "voucher" && promotion.id === quote.voucherId
+      );
+      const voucherQuery = new URLSearchParams({
+        id_voucher: `eq.${quote.voucherId}`,
+        soluong: `eq.${selectedVoucher.available}`
+      });
+      const updated = await customerDatabaseRequest(
+        config,
+        `/rest/v1/kmtheovoucher?${voucherQuery}`,
+        {
+          method: "PATCH",
+          prefer: "return=representation",
+          body: { soluong: selectedVoucher.available - 1 }
+        }
+      );
+      if (!updated?.[0]) {
+        throw createHttpError(409, "Voucher vừa hết lượt sử dụng. Vui lòng chọn ưu đãi khác.");
+      }
+      reservedVoucher = {
+        id: quote.voucherId,
+        previousQuantity: selectedVoucher.available,
+        reservedQuantity: selectedVoucher.available - 1
+      };
     }
 
     for (const item of orderLines) {
@@ -157,13 +213,13 @@ module.exports = async function handler(request, response) {
       prefer: "return=representation",
       body: {
         ngaydat: new Date().toISOString().slice(0, 10),
-        dichigiaohang: address,
+        id_diachigiaohang: addressId,
         tongtien: quote.total,
         trangthai: 1,
         cccd_nhanvien: null,
         id_khachhang: context.user.id,
-        id_mactkm: quote.invoicePromotionId,
-        id_voucher: null
+        id_mactkm: quote.promotionCampaignId,
+        id_voucher: quote.voucherId
       }
     });
     orderId = Number(invoices?.[0]?.id_hoadon);
@@ -226,6 +282,29 @@ module.exports = async function handler(request, response) {
         }
       } catch (rollbackError) {
         rollbackErrors.push(`tồn kho sản phẩm ${product.id}: ${rollbackError.message}`);
+      }
+    }
+
+    if (reservedVoucher) {
+      try {
+        const query = new URLSearchParams({
+          id_voucher: `eq.${reservedVoucher.id}`,
+          soluong: `eq.${reservedVoucher.reservedQuantity}`
+        });
+        const restored = await customerDatabaseRequest(
+          config,
+          `/rest/v1/kmtheovoucher?${query}`,
+          {
+            method: "PATCH",
+            prefer: "return=representation",
+            body: { soluong: reservedVoucher.previousQuantity }
+          }
+        );
+        if (!restored?.[0]) {
+          rollbackErrors.push(`lượt voucher ${reservedVoucher.id} đã thay đổi, không thể hoàn tác tự động`);
+        }
+      } catch (rollbackError) {
+        rollbackErrors.push(`lượt voucher ${reservedVoucher.id}: ${rollbackError.message}`);
       }
     }
 

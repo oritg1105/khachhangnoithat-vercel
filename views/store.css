@@ -99,19 +99,12 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .store-catalog-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 17px; }
 .store-catalog-heading h2 { margin: 7px 0 0; font: 400 31px "Segoe UI", Inter, Tahoma, Arial, sans-serif; }
 .store-result-count { color: var(--store-muted); font-size: 11px; }
-.store-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
-.store-filters { display: flex; flex: 1; justify-content: flex-end; gap: 9px; }
-.store-filters input, .store-filters select {
-  width: min(230px, 30%);
-  height: 41px;
-  border: 1px solid var(--store-line);
-  padding: 0 12px;
-  outline: none;
-  color: var(--store-ink);
-  background: white;
-  font-size: 11px;
-}
-.store-filters input:focus, .store-filters select:focus { border-color: var(--store-brown); }
+.store-toolbar { margin-bottom: 20px; padding: 15px; border: 1px solid var(--store-line); background: white; }
+.store-search-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; gap: 12px; margin-top: 12px; }
+.store-search-fields .store-field { min-width: 0; margin: 0; }
+.store-search-fields .store-field input, .store-search-fields .store-field select { width: 100%; }
+.store-search-keyword { grid-column: span 2; }
+.store-search-fields > .store-button { align-self: end; justify-content: center; }
 .store-products { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .store-card { overflow: hidden; border: 1px solid var(--store-line); background: var(--store-panel); transition: box-shadow .2s ease, transform .2s ease; }
 .store-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px #35291f12; }
@@ -158,6 +151,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .store-profile-main .store-account-page > form .store-button { margin-top: 6px; }
 .store-saved-addresses { margin-top: 18px; }
 .store-saved-addresses .store-address-row { display: grid; grid-template-columns: minmax(130px, 30%) minmax(0, 1fr) auto; gap: 14px; }
+.store-address-default { display: block; margin-top: 4px; color: #38734b; font-size: 9px; }
 .store-saved-addresses .store-address-actions { justify-content: flex-end; gap: 4px; }
 .store-address-delete { width: 30px; height: 34px; display: grid; place-items: center; border: 0; color: #995247; background: transparent; }
 .store-address-delete:hover { color: #7d3028; background: #fff1ed; }
@@ -190,6 +184,9 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .store-checkout-form { min-width: 0; }
 .store-checkout-order { align-self: start; padding: 19px; border: 1px solid var(--store-line); background: var(--store-paper); }
 .store-checkout-order h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.store-promotion-picker { margin: 14px 0 4px; }
+.store-promotion-picker select { width: 100%; }
+.store-promotion-note { margin: 5px 0 12px; color: var(--store-muted); font-size: 10px; line-height: 1.5; }
 .store-checkout-page .store-checkout-total { margin: 12px 0; }
 .store-checkout-form > .store-button { width: 100%; justify-content: center; }
 .store-checkout-form > .store-checkout-note { margin-bottom: 16px; }
@@ -275,6 +272,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .store-profile-tabs button { padding-right: 12px; padding-left: 12px; }
   .store-checkout-layout { grid-template-columns: 1fr; }
   .store-checkout-order { order: -1; }
+  .store-search-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .store-search-keyword { grid-column: 1 / -1; }
 }
 @media (max-width: 560px) {
   .store-header { min-height: 64px; padding: 0 15px; }
@@ -320,8 +319,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .store-catalog-heading { align-items: start; flex-direction: column; gap: 7px; }
   .store-catalog-heading h2 { font-size: 27px; }
   .store-toolbar { align-items: stretch; flex-direction: column; }
-  .store-filters { justify-content: stretch; }
-  .store-filters input, .store-filters select { width: 50%; }
+  .store-search-fields { gap: 8px; }
+  .store-search-fields .store-field span { font-size: 9px; }
   .store-products { gap: 9px; }
   .store-card-body { padding: 11px; }
   .store-card h3 { font-size: 14px; }

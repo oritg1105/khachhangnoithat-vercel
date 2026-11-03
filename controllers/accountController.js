@@ -3,6 +3,9 @@ import {
   addCustomerAddress, deleteCustomerAddress, getCustomerAccount, updateCustomerAddress, updateCustomerProfile
 } from "../models/customerAccountModel.js";
 import { readCart } from "../models/storefrontModel.js";
+import {
+  formatVietnamAddress, initializeVietnamAddressFields, readVietnamAddressForm, renderVietnamAddressFields
+} from "../models/vietnamAddressModel.js";
 
 let customerAccount = null;
 const requestedTab = new URLSearchParams(window.location.search).get("tab");
@@ -66,6 +69,7 @@ function renderShell() {
   window.addEventListener("storage", event => {
     if (event.key === "woodcraft-customer-cart") updateCartCount();
   });
+  window.addEventListener("woodcraft-cart-expired", updateCartCount);
   document.querySelector("#account-signout").addEventListener("click", () => {
     signOutCustomer();
     window.location.assign("/");
@@ -109,16 +113,17 @@ function renderAccountTab(tab, message = "") {
 
   if (tab === "addresses") {
     panel.innerHTML = `<form id="account-address-form">
-      <label class="store-field"><span>Thêm địa chỉ giao hàng</span><input name="address" maxlength="500" minlength="5" required></label>
+      <h2>Thêm địa chỉ giao hàng</h2>
+      ${renderVietnamAddressFields("account-address")}
       <button class="store-button" type="submit">Lưu địa chỉ</button>
-      <p class="store-form-message" id="account-address-error" role="alert" hidden></p>
+      <p class="store-form-message" id="account-address-error" data-address-error role="alert" hidden></p>
     </form>
     ${customerAccount.addresses.length ? `<div class="store-profile-details store-saved-addresses">
       <h2>Địa chỉ đã lưu</h2>
       ${customerAccount.addresses.map((address, index) => `
         <div class="store-profile-row store-address-row" data-address-row="${index}">
-          <span class="store-profile-label">Địa chỉ ${index + 1}</span>
-          <span class="store-profile-value">${escapeHtml(address)}</span>
+          <span class="store-profile-label">Địa chỉ ${index + 1}${Number(address.macdinh) === 1 ? `<small class="store-address-default">Mặc định</small>` : ""}</span>
+          <span class="store-profile-value">${escapeHtml(address.displayAddress)}</span>
           <span class="store-address-actions">
             <button class="store-profile-edit" type="button" data-edit-address="${index}" aria-label="Chỉnh sửa địa chỉ ${index + 1}">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18.8 8.7l-3.5-3.5L4 16.5Zm17.7-10.2a.93.93 0 0 0 0-1.3l-2.7-2.7a.93.93 0 0 0-1.3 0l-1.7 1.7 3.5 3.5 2.2-1.2Z"/></svg>
@@ -129,7 +134,9 @@ function renderAccountTab(tab, message = "") {
           </span>
         </div>`).join("")}
     </div>` : `<p class="store-address-empty">Chưa lưu địa chỉ giao hàng.</p>`}`;
-    panel.querySelector("#account-address-form").addEventListener("submit", submitAddress);
+    const form = panel.querySelector("#account-address-form");
+    form.addEventListener("submit", submitAddress);
+    initializeAddressEditor(form);
     panel.querySelectorAll("[data-edit-address]").forEach(button =>
       button.addEventListener("click", () => renderAddressEditor(Number(button.dataset.editAddress)))
     );
@@ -143,7 +150,7 @@ function renderAccountTab(tab, message = "") {
     <article class="store-order">
       <div class="store-order-heading"><strong>Hóa đơn HD${order.id}</strong><span>${escapeHtml(order.status)}</span></div>
       <p>Ngày đặt: ${escapeHtml(String(order.date || "").slice(0, 10))}</p>
-      <p>Giao đến: ${escapeHtml(order.address)}</p>
+      <p>Giao đến: ${escapeHtml(order.addressText || "Không có địa chỉ giao hàng")}</p>
       <ul>${order.items.map(item => `<li>${escapeHtml(item.name)} × ${item.quantity}<span>${formatMoney(item.total)}</span></li>`).join("")}</ul>
       <div class="store-order-total">Tổng cộng: <strong>${formatMoney(order.total)}</strong></div>
     </article>`).join("") : `<p>Bạn chưa có đơn hàng nào.</p>`;
@@ -151,6 +158,14 @@ function renderAccountTab(tab, message = "") {
 
 async function refreshAccount() {
   customerAccount = await getCustomerAccount();
+  await Promise.all(customerAccount.addresses.map(async address => {
+    address.displayAddress = await formatVietnamAddress(address);
+  }));
+  const addressesById = new Map(customerAccount.addresses.map(address => [Number(address.id_diachi), address]));
+  await Promise.all(customerAccount.orders.map(async order => {
+    const address = addressesById.get(Number(order.address?.id_diachi)) || order.address;
+    order.addressText = address ? await formatVietnamAddress(address) : "";
+  }));
   const session = getCustomerSession();
   document.querySelector("#account-greeting").textContent = `Xin chào, ${customerAccount.profile.hoten || ""}`;
   document.querySelector("#account-meta").textContent =
@@ -217,10 +232,9 @@ function renderAddressEditor(index) {
   const row = document.querySelector(`[data-address-row="${index}"]`);
   if (!row) return;
   row.outerHTML = `<form class="store-profile-row store-profile-edit-row store-address-row" data-address-form="${index}">
-    <label class="store-profile-label" for="account-address-${index}">Địa chỉ ${index + 1}</label>
-    <span class="store-profile-value">
-      <textarea id="account-address-${index}" name="address" minlength="5" maxlength="500" required>${escapeHtml(address)}</textarea>
-      <span class="store-form-message" role="alert" hidden></span>
+    <span class="store-profile-label">Sửa địa chỉ ${index + 1}</span>
+    <span class="store-profile-value">${renderVietnamAddressFields(`edit-address-${index}`, address)}
+      <span class="store-form-message" data-address-error role="alert" hidden></span>
     </span>
     <span class="store-profile-edit-actions">
       <button class="store-profile-save" type="submit" aria-label="Lưu địa chỉ ${index + 1}">Lưu</button>
@@ -228,9 +242,18 @@ function renderAddressEditor(index) {
     </span>
   </form>`;
   const form = document.querySelector(`[data-address-form="${index}"]`);
-  form.querySelector("textarea").focus();
-  form.addEventListener("submit", event => submitAddressUpdate(event, address));
+  form.addEventListener("submit", event => submitAddressUpdate(event, address.id_diachi));
+  initializeAddressEditor(form, address);
   form.querySelector(".store-profile-cancel").addEventListener("click", () => renderAccountTab("addresses"));
+}
+
+function initializeAddressEditor(form, address = {}) {
+  initializeVietnamAddressFields(form, address).catch(error => {
+    const message = form.querySelector("[data-address-error]");
+    message.textContent = error.message;
+    message.hidden = false;
+    form.querySelector('[type="submit"]').disabled = true;
+  });
 }
 
 async function submitProfileUpdate(event, field) {
@@ -264,9 +287,9 @@ async function submitAddress(event) {
   const form = event.currentTarget;
   const errorNode = document.querySelector("#account-address-error");
   const button = form.querySelector('[type="submit"]');
-  const address = String(new FormData(form).get("address") || "").trim();
   button.disabled = true;
   try {
+    const address = readVietnamAddressForm(form);
     await addCustomerAddress(address);
     await refreshAccount();
   } catch (error) {
@@ -277,15 +300,15 @@ async function submitAddress(event) {
   }
 }
 
-async function submitAddressUpdate(event, currentAddress) {
+async function submitAddressUpdate(event, addressId) {
   event.preventDefault();
   const form = event.currentTarget;
   const button = form.querySelector('[type="submit"]');
-  const message = form.querySelector(".store-form-message");
-  const address = String(new FormData(form).get("address") || "").trim();
+  const message = form.querySelector("[data-address-error]");
   button.disabled = true;
   try {
-    await updateCustomerAddress(currentAddress, address);
+    const address = readVietnamAddressForm(form);
+    await updateCustomerAddress(addressId, address);
     await refreshAccount();
     showMessage("Đã cập nhật địa chỉ giao hàng.", true);
   } catch (error) {
@@ -298,9 +321,9 @@ async function submitAddressUpdate(event, currentAddress) {
 
 async function deleteAddress(index) {
   const address = customerAccount.addresses[index];
-  if (!address || !window.confirm("Xóa địa chỉ giao hàng này?")) return;
+  if (!address || !window.confirm("Xóa địa chỉ giao hàng này? Các địa chỉ đã gắn với đơn hàng không thể xóa.")) return;
   try {
-    await deleteCustomerAddress(address);
+    await deleteCustomerAddress(address.id_diachi);
     await refreshAccount();
   } catch (error) {
     showMessage(error.message);

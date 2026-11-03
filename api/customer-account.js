@@ -19,29 +19,36 @@ async function loadCustomer(config, customerId) {
 async function loadAddresses(config, customerId) {
   const rows = await customerDatabaseRequest(
     config,
-    `/rest/v1/diachigiaohang?select=dichi&id_khachhang=eq.${customerId}&order=dichi.asc`
+    `/rest/v1/diachigiaohang?select=id_diachi,id_khachhang,tinhthanh,phuongxa,duong,macdinh&id_khachhang=eq.${customerId}&order=macdinh.desc,id_diachi.desc`
   );
-  return (rows || []).map(row => row.dichi);
+  return rows || [];
 }
 
-async function loadOrders(config, customerId) {
+async function loadOrders(config, customerId, addresses) {
   const orders = await customerDatabaseRequest(
     config,
-    `/rest/v1/hoadon?select=id_hoadon,ngaydat,dichigiaohang,ngaygiao,tongtien,trangthai&id_khachhang=eq.${customerId}&order=id_hoadon.desc&limit=50`
+    `/rest/v1/hoadon?select=id_hoadon,ngaydat,id_diachigiaohang,ngaygiao,tongtien,trangthai&id_khachhang=eq.${customerId}&order=id_hoadon.desc&limit=50`
   );
   if (!orders?.length) return [];
   const ids = orders.map(order => Number(order.id_hoadon)).filter(Number.isInteger);
-  const [details, products] = await Promise.all([
+  const addressIds = [...new Set(orders.map(order => Number(order.id_diachigiaohang)).filter(Number.isSafeInteger))];
+  const addressMap = new Map((addresses || []).map(address => [Number(address.id_diachi), address]));
+  const missingAddressIds = addressIds.filter(id => !addressMap.has(id));
+  const [details, products, missingAddresses] = await Promise.all([
     customerDatabaseRequest(
       config,
       `/rest/v1/chitiethoadon?select=id_hoadon,id_sanpham,soluong,dongia,thanhtien&id_hoadon=in.(${ids.join(",")})`
     ),
-    customerDatabaseRequest(config, "/rest/v1/sanpham?select=id_sanpham,tensanpham")
+    customerDatabaseRequest(config, "/rest/v1/sanpham?select=id_sanpham,tensanpham"),
+    missingAddressIds.length
+      ? customerDatabaseRequest(config, `/rest/v1/diachigiaohang?select=id_diachi,tinhthanh,phuongxa,duong,macdinh&id_khachhang=eq.${customerId}&id_diachi=in.(${missingAddressIds.join(",")})`)
+      : []
   ]);
+  for (const address of missingAddresses || []) addressMap.set(Number(address.id_diachi), address);
   return orders.map(order => ({
     id: Number(order.id_hoadon),
     date: order.ngaydat,
-    address: order.dichigiaohang || "",
+    address: addressMap.get(Number(order.id_diachigiaohang)) || null,
     deliveredAt: order.ngaygiao,
     total: Number(order.tongtien || 0),
     status: Number(order.trangthai) === 0
@@ -59,6 +66,48 @@ async function loadOrders(config, customerId) {
         total: Number(detail.thanhtien || 0)
       }))
   }));
+}
+
+function parseAddress(body) {
+  const address = {
+    tinhthanh: Number(body?.tinhThanh),
+    phuongxa: Number(body?.phuongXa),
+    duong: String(body?.duong || "").trim(),
+    macdinh: body?.macDinh === true
+  };
+  if (!Number.isSafeInteger(address.tinhthanh) || address.tinhthanh < 1 ||
+      !Number.isSafeInteger(address.phuongxa) || address.phuongxa < 1 ||
+      address.duong.length < 2 || address.duong.length > 300) {
+    return null;
+  }
+  return address;
+}
+
+async function setDefaultAddress(config, customerId, addressId) {
+  const clearQuery = new URLSearchParams({
+    id_khachhang: `eq.${customerId}`,
+    macdinh: "eq.1"
+  });
+  await customerDatabaseRequest(config, `/rest/v1/diachigiaohang?${clearQuery}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: { macdinh: 0 }
+  });
+  const defaultQuery = new URLSearchParams({
+    id_khachhang: `eq.${customerId}`,
+    id_diachi: `eq.${addressId}`
+  });
+  const updated = await customerDatabaseRequest(config, `/rest/v1/diachigiaohang?${defaultQuery}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { macdinh: 1 }
+  });
+  if (!updated?.[0]) {
+    const error = new Error("Không thể đặt địa chỉ mặc định.");
+    error.status = 409;
+    throw error;
+  }
+  return updated[0];
 }
 
 module.exports = async function handler(request, response) {
@@ -84,11 +133,11 @@ module.exports = async function handler(request, response) {
   const action = request.body?.action;
   try {
     if (request.method === "GET") {
-      const [profile, addresses, orders] = await Promise.all([
+      const [profile, addresses] = await Promise.all([
         loadCustomer(config, customerId),
-        loadAddresses(config, customerId),
-        loadOrders(config, customerId)
+        loadAddresses(config, customerId)
       ]);
+      const orders = await loadOrders(config, customerId, addresses);
       return response.status(200).json({
         data: { profile, addresses, orders, username: context.user.username }
       });
@@ -114,28 +163,38 @@ module.exports = async function handler(request, response) {
     }
 
     if (request.method === "POST" && action === "address") {
-      const address = String(request.body?.address || "").trim();
-      if (address.length < 5 || address.length > 500) {
-        return response.status(400).json({ error: "Địa chỉ cần từ 5 đến 500 ký tự." });
+      const address = parseAddress(request.body);
+      if (!address) {
+        return response.status(400).json({ error: "Vui lòng chọn tỉnh/thành, phường/xã và nhập số nhà, tên đường hợp lệ." });
       }
+      const currentAddresses = await loadAddresses(config, customerId);
       const result = await customerDatabaseRequest(config, "/rest/v1/diachigiaohang", {
         method: "POST",
         prefer: "return=representation",
-        body: { dichi: address, id_khachhang: customerId }
+        body: {
+          tinhthanh: address.tinhthanh,
+          phuongxa: address.phuongxa,
+          duong: address.duong,
+          macdinh: address.macdinh || currentAddresses.length === 0 ? 1 : 0,
+          id_khachhang: customerId
+        }
       });
       if (!result?.[0]) return response.status(403).json({ error: "Không thể lưu địa chỉ giao hàng." });
-      return response.status(201).json({ data: result[0] });
+      const saved = address.macdinh && currentAddresses.length
+        ? await setDefaultAddress(config, customerId, result[0].id_diachi)
+        : result[0];
+      return response.status(201).json({ data: saved });
     }
 
     if (request.method === "PATCH" && action === "update-address") {
-      const currentAddress = String(request.body?.currentAddress || "").trim();
-      const address = String(request.body?.address || "").trim();
-      if (!currentAddress || address.length < 5 || address.length > 500) {
-        return response.status(400).json({ error: "Địa chỉ cần từ 5 đến 500 ký tự." });
+      const addressId = Number(request.body?.addressId);
+      const address = parseAddress(request.body);
+      if (!Number.isSafeInteger(addressId) || addressId < 1 || !address) {
+        return response.status(400).json({ error: "Địa chỉ giao hàng không hợp lệ." });
       }
       const query = new URLSearchParams({
         id_khachhang: `eq.${customerId}`,
-        dichi: `eq.${currentAddress}`
+        id_diachi: `eq.${addressId}`
       });
       const result = await customerDatabaseRequest(
         config,
@@ -143,19 +202,41 @@ module.exports = async function handler(request, response) {
         {
           method: "PATCH",
           prefer: "return=representation",
-          body: { dichi: address }
+          body: {
+            tinhthanh: address.tinhthanh,
+            phuongxa: address.phuongxa,
+            duong: address.duong,
+            macdinh: address.macdinh ? 1 : 0
+          }
         }
       );
       if (!result?.length) return response.status(404).json({ error: "Không tìm thấy địa chỉ giao hàng cần sửa." });
-      return response.status(200).json({ data: result[0] });
+      const saved = address.macdinh
+        ? await setDefaultAddress(config, customerId, addressId)
+        : result[0];
+      return response.status(200).json({ data: saved });
     }
 
     if (request.method === "POST" && action === "delete-address") {
-      const address = String(request.body?.address || "").trim();
-      if (!address) return response.status(400).json({ error: "Thiếu địa chỉ cần xóa." });
+      const addressId = Number(request.body?.addressId);
+      if (!Number.isSafeInteger(addressId) || addressId < 1) {
+        return response.status(400).json({ error: "Mã địa chỉ cần xóa không hợp lệ." });
+      }
+      const invoiceQuery = new URLSearchParams({
+        id_khachhang: `eq.${customerId}`,
+        id_diachigiaohang: `eq.${addressId}`,
+        select: "id_hoadon",
+        limit: "1"
+      });
+      const linkedOrders = await customerDatabaseRequest(config, `/rest/v1/hoadon?${invoiceQuery}`);
+      if (linkedOrders?.length) {
+        return response.status(409).json({
+          error: "Địa chỉ đã được dùng cho đơn hàng nên không thể xóa. Bạn có thể sửa địa chỉ hoặc chọn địa chỉ khác."
+        });
+      }
       const query = new URLSearchParams({
         id_khachhang: `eq.${customerId}`,
-        dichi: `eq.${address}`
+        id_diachi: `eq.${addressId}`
       });
       const result = await customerDatabaseRequest(
         config,
@@ -163,6 +244,12 @@ module.exports = async function handler(request, response) {
         { method: "DELETE", prefer: "return=representation" }
       );
       if (!result?.length) return response.status(404).json({ error: "Không tìm thấy địa chỉ giao hàng cần xóa." });
+      if (Number(result[0].macdinh) === 1) {
+        const remainingAddresses = await loadAddresses(config, customerId);
+        if (remainingAddresses.length) {
+          await setDefaultAddress(config, customerId, remainingAddresses[0].id_diachi);
+        }
+      }
       return response.status(200).json({ data: true });
     }
 

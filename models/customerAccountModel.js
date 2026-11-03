@@ -30,18 +30,18 @@ export function updateCustomerProfile(fullName, phone) {
 }
 
 export function addCustomerAddress(address) {
-  return requestAccount("POST", { action: "address", address });
+  return requestAccount("POST", { action: "address", ...address });
 }
 
-export function updateCustomerAddress(currentAddress, address) {
-  return requestAccount("PATCH", { action: "update-address", currentAddress, address });
+export function updateCustomerAddress(addressId, address) {
+  return requestAccount("PATCH", { action: "update-address", addressId, ...address });
 }
 
-export function deleteCustomerAddress(address) {
-  return requestAccount("POST", { action: "delete-address", address });
+export function deleteCustomerAddress(addressId) {
+  return requestAccount("POST", { action: "delete-address", addressId });
 }
 
-export async function placeCustomerOrder(cart, address, expectedQuote) {
+export async function placeCustomerOrder(cart, addressId, expectedQuote) {
   const session = await getValidCustomerSession();
   if (!session) throw new Error("Vui lòng đăng nhập để đặt hàng.");
   const response = await fetch("/api/customer-checkout", {
@@ -51,12 +51,14 @@ export async function placeCustomerOrder(cart, address, expectedQuote) {
       Authorization: `Bearer ${session.access_token}`
     },
     body: JSON.stringify({
-      address,
+      addressId,
       expectedTotal: expectedQuote?.total,
       expectedItems: expectedQuote?.lines.map(item => ({
         id_sanPham: item.id_sanpham,
         soLuong: item.soluong
       })),
+      expectedPromotion: expectedQuote?.selectedPromotion || null,
+      selectedPromotion: expectedQuote?.selectedPromotion || null,
       items: cart.map(item => ({ id_sanPham: item.id, soLuong: item.quantity }))
     })
   });
@@ -70,7 +72,7 @@ export async function placeCustomerOrder(cart, address, expectedQuote) {
   return payload.data;
 }
 
-export async function getCustomerOrderQuote(cart) {
+export async function getCustomerOrderQuote(cart, selectedPromotion = null) {
   const session = await getValidCustomerSession();
   if (!session) throw new Error("Vui lòng đăng nhập để tiếp tục.");
   const response = await fetch("/api/customer-checkout", {
@@ -81,6 +83,7 @@ export async function getCustomerOrderQuote(cart) {
     },
     body: JSON.stringify({
       action: "quote",
+      selectedPromotion,
       items: cart.map(item => ({ id_sanPham: item.id, soLuong: item.quantity }))
     })
   });

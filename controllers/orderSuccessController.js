@@ -1,5 +1,6 @@
 import { getCustomerSession } from "../models/customerAuthModel.js";
 import { getCustomerAccount } from "../models/customerAccountModel.js";
+import { formatVietnamAddress } from "../models/vietnamAddressModel.js";
 
 const root = document.querySelector("#order-success");
 
@@ -46,6 +47,9 @@ async function renderOrder() {
       renderError("Không tìm thấy đơn hàng trong tài khoản của bạn.");
       return;
     }
+    const deliveryAddress = order.address
+      ? await formatVietnamAddress(order.address)
+      : "Không có địa chỉ giao hàng";
 
     root.innerHTML = `
       <div class="store-order-success-icon" aria-hidden="true">✓</div>
@@ -55,7 +59,7 @@ async function renderOrder() {
       <article class="store-order">
         <div class="store-order-heading"><strong>Hóa đơn HD${order.id}</strong><span>${escapeHtml(order.status)}</span></div>
         <p>Ngày đặt: ${escapeHtml(String(order.date || "").slice(0, 10))}</p>
-        <p>Giao đến: ${escapeHtml(order.address)}</p>
+        <p>Giao đến: ${escapeHtml(deliveryAddress)}</p>
         <ul>${order.items.map(item => `<li>${escapeHtml(item.name)} × ${item.quantity}<span>${formatMoney(item.total)}</span></li>`).join("")}</ul>
         <div class="store-order-total">Thanh toán khi nhận hàng: <strong>${formatMoney(order.total)}</strong></div>
       </article>

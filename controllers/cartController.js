@@ -35,8 +35,8 @@ function renderPage() {
         <a href="/">Sản phẩm</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng (<span id="cart-header-count">0</span>)</a>
         ${session
-          ? `<a class="store-cart-link" href="account.html">${escapeHtml(session.user.username)}</a>`
-          : `<a class="store-cart-link" href="customer-login.html">Đăng nhập</a>`}
+      ? `<a class="store-cart-link" href="account.html">${escapeHtml(session.user.username)}</a>`
+      : `<a class="store-cart-link" href="customer-login.html">Đăng nhập</a>`}
       </nav>
     </header>
     <main class="store-page-main">
@@ -48,8 +48,8 @@ function renderPage() {
         </div>
         <div id="cart-contents" aria-live="polite"><div class="store-cart-empty">Đang tải giỏ hàng...</div></div>
         <div class="store-cart-summary"><span>Tạm tính</span><strong id="cart-total">0 ₫</strong></div>
-        <button class="store-button" id="cart-checkout-button" type="button" disabled>Tiến hành đặt hàng COD</button>
-        <p class="store-checkout-note">Giá và tồn kho được kiểm tra lại khi đặt hàng. Thanh toán bằng tiền mặt khi nhận hàng.</p>
+        <button class="store-button" id="cart-checkout-button" type="button" disabled>Đặt hàng</button>
+        <p class="store-checkout-note">Giá và tồn kho được kiểm tra lại khi đặt hàng; thanh toán bằng tiền mặt khi nhận hàng.</p>
       </section>
     </main>
     <footer class="store-footer">Woodcraft · Nội thất gỗ cho không gian sống của bạn</footer>
@@ -189,4 +189,18 @@ async function loadCartProducts() {
 
 renderPage();
 renderPendingCart();
+if (new URLSearchParams(window.location.search).get("expired") === "1") {
+  showToast("Giỏ hàng đã được xóa sau 5 phút.");
+}
+window.addEventListener("woodcraft-cart-expired", () => {
+  cart = [];
+  updateCart();
+  showToast("Giỏ hàng đã được xóa sau 5 phút.");
+});
+window.addEventListener("storage", event => {
+  if (event.key === "woodcraft-customer-cart") {
+    cart = readCart();
+    updateCart();
+  }
+});
 loadCartProducts();
