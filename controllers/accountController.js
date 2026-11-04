@@ -150,9 +150,26 @@ function renderAccountTab(tab, message = "") {
     <article class="store-order">
       <div class="store-order-heading"><strong>Hóa đơn HD${order.id}</strong><span>${escapeHtml(order.status)}</span></div>
       <p>Ngày đặt: ${escapeHtml(String(order.date || "").slice(0, 10))}</p>
-      <p>Giao đến: ${escapeHtml(order.addressText || "Không có địa chỉ giao hàng")}</p>
-      <ul>${order.items.map(item => `<li>${escapeHtml(item.name)} × ${item.quantity}<span>${formatMoney(item.total)}</span></li>`).join("")}</ul>
       <div class="store-order-total">Tổng cộng: <strong>${formatMoney(order.total)}</strong></div>
+      <details class="store-order-details">
+        <summary>Xem chi tiết đơn hàng (${order.items.length} sản phẩm)</summary>
+        <div class="store-order-detail-meta">
+          <p><strong>Địa chỉ giao hàng:</strong> ${escapeHtml(order.addressText || "Không có địa chỉ giao hàng")}</p>
+          <p><strong>Thanh toán:</strong> Tiền mặt khi nhận hàng (COD)</p>
+          ${order.deliveredAt ? `<p><strong>Ngày giao:</strong> ${escapeHtml(String(order.deliveredAt).slice(0, 10))}</p>` : ""}
+        </div>
+        ${order.items.length ? `<div class="store-order-items-wrap">
+          <table class="store-order-items">
+            <thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+            <tbody>${order.items.map(item => `<tr>
+              <td>${escapeHtml(item.name)}</td>
+              <td>${item.quantity}</td>
+              <td>${formatMoney(item.price)}</td>
+              <td>${formatMoney(item.total)}</td>
+            </tr>`).join("")}</tbody>
+          </table>
+        </div>` : `<p class="store-order-no-items">Đơn hàng chưa có thông tin sản phẩm.</p>`}
+      </details>
     </article>`).join("") : `<p>Bạn chưa có đơn hàng nào.</p>`;
 }
 

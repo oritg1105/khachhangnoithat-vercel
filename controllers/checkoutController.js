@@ -38,7 +38,7 @@ function renderOrderSummary(items, quote) {
               : "Voucher";
           const availability = promotion.available === undefined ? "" : ` · Còn ${promotion.available}`;
           return `<option value="${escapeHtml(value)}" ${value === selectedPromotionValue(quote.selectedPromotion) ? "selected" : ""}>
-            ${escapeHtml(promotion.name)} · ${typeLabel} · Giảm ${formatMoney(promotion.discount)}${availability}
+            ${escapeHtml(promotion.name)} · ${typeLabel} · Giảm ${escapeHtml(promotion.discountPercentLabel || "0%")} (${formatMoney(promotion.discount)})${availability}
           </option>`;
         }).join("")}
       </select>
@@ -47,7 +47,7 @@ function renderOrderSummary(items, quote) {
     <div class="store-checkout-summary">
       ${items.map(({ product, quantity, quoteLine }) => `<div class="store-checkout-item">
         <span>${escapeHtml(product.name)} × ${quantity}${quoteLine.productDiscount
-          ? `<small>Giảm ${formatMoney(quoteLine.productDiscount)} · ${escapeHtml(quoteLine.productPromotionName)}</small>`
+          ? `<small>Giảm ${Number(quoteLine.productDiscountPercent)}% (${formatMoney(quoteLine.productDiscount)}) · ${escapeHtml(quoteLine.productPromotionName)}</small>`
           : ""}</span>
         <strong>${formatMoney(quoteLine.subtotal)}</strong>
       </div>`).join("")}

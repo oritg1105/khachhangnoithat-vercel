@@ -134,6 +134,8 @@ module.exports = async function handler(request, response) {
             name: promotion.name,
             description: promotion.description,
             discount: promotion.discount,
+            discountPercent: promotion.discountPercent,
+            discountPercentLabel: promotion.discountPercentLabel,
             ...(promotion.available === undefined ? {} : { available: promotion.available })
           })),
           lines: quote.lines.map(item => ({
@@ -141,6 +143,7 @@ module.exports = async function handler(request, response) {
             soluong: item.soluong,
             subtotal: item.subtotal,
             productDiscount: item.productDiscount,
+            productDiscountPercent: item.productDiscountPercent,
             productPromotionName: item.productPromotionName,
             total: item.amountAfterProductDiscount
           }))
@@ -162,7 +165,7 @@ module.exports = async function handler(request, response) {
       );
       const voucherQuery = new URLSearchParams({
         id_voucher: `eq.${quote.voucherId}`,
-        soluong: `eq.${selectedVoucher.available}`
+        soluonghientai: `eq.${selectedVoucher.available}`
       });
       const updated = await customerDatabaseRequest(
         config,
@@ -170,7 +173,7 @@ module.exports = async function handler(request, response) {
         {
           method: "PATCH",
           prefer: "return=representation",
-          body: { soluong: selectedVoucher.available - 1 }
+          body: { soluonghientai: selectedVoucher.available - 1 }
         }
       );
       if (!updated?.[0]) {
@@ -289,7 +292,7 @@ module.exports = async function handler(request, response) {
       try {
         const query = new URLSearchParams({
           id_voucher: `eq.${reservedVoucher.id}`,
-          soluong: `eq.${reservedVoucher.reservedQuantity}`
+          soluonghientai: `eq.${reservedVoucher.reservedQuantity}`
         });
         const restored = await customerDatabaseRequest(
           config,
@@ -297,7 +300,7 @@ module.exports = async function handler(request, response) {
           {
             method: "PATCH",
             prefer: "return=representation",
-            body: { soluong: reservedVoucher.previousQuantity }
+            body: { soluonghientai: reservedVoucher.previousQuantity }
           }
         );
         if (!restored?.[0]) {
