@@ -39,6 +39,65 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .store-cart-link { padding: 10px 14px; border: 1px solid var(--store-brown); color: var(--store-brown-dark) !important; background: transparent; font-size: 11px; }
 .store-auth-actions { display: flex; gap: 8px; }
 .store-register-link { color: #fff !important; background: var(--store-brown); }
+.store-customer-menu { position: relative; }
+.store-customer-actions-desktop { display: flex; align-items: center; gap: 8px; }
+.store-customer-profile, .store-customer-logout {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--store-brown);
+  padding: 0 12px;
+  color: var(--store-brown-dark);
+  background: white;
+  font: 11px "Segoe UI", Inter, Tahoma, Arial, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+.store-customer-logout { color: white; background: var(--store-brown); }
+.store-customer-dropdown { display: none; }
+.store-customer-dropdown > summary {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--store-brown);
+  padding: 0 10px;
+  color: var(--store-brown-dark);
+  background: white;
+  font-size: 11px;
+  list-style: none;
+  cursor: pointer;
+}
+.store-customer-dropdown > summary::-webkit-details-marker { display: none; }
+.store-customer-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 8;
+  min-width: 175px;
+  padding: 6px;
+  border: 1px solid var(--store-line);
+  background: white;
+  box-shadow: 0 8px 24px #29241f1c;
+}
+.store-customer-dropdown-panel a,
+.store-customer-dropdown-panel button {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  border: 0;
+  padding: 0 10px;
+  color: var(--store-ink);
+  background: white;
+  font: 11px "Segoe UI", Inter, Tahoma, Arial, sans-serif;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.store-customer-dropdown-panel a:hover,
+.store-customer-dropdown-panel button:hover { color: var(--store-brown); background: var(--store-paper); }
 
 .store-main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 35px 0 72px; }
 .store-page-main { width: min(900px, calc(100% - 40px)); min-height: calc(100vh - 150px); margin: 0 auto; padding: 32px 0 60px; }
@@ -52,7 +111,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .store-profile-heading .store-eyebrow { font-size: 9px; }
 .store-profile-heading h1 { margin: 5px 0 4px; color: var(--store-brown-dark); font-size: clamp(22px, 3vw, 29px); font-weight: 600; }
 .store-profile-heading .store-account-meta { margin: 0; }
-.store-profile-identity > .store-text-button { align-self: center; margin: 0 0 0 auto; padding: 9px 13px; border: 1px solid var(--store-line); text-decoration: none; }
 .store-profile-tabs { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 20px; border-bottom: 1px solid var(--store-line); background: white; scrollbar-width: thin; }
 .store-profile-tabs button { flex: 0 0 auto; border: 0; border-bottom: 2px solid transparent; padding: 15px 16px 13px; color: var(--store-muted); background: transparent; font-size: 12px; }
 .store-profile-tabs button:hover, .store-profile-tabs button:focus-visible { color: var(--store-brown); }
@@ -296,6 +354,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .store-cart-link { padding: 8px; }
   .store-auth-actions { gap: 5px; }
   .store-auth-actions .store-cart-link { padding: 8px 6px; font-size: 9px; }
+  .store-customer-actions-desktop { display: none; }
+  .store-customer-dropdown { display: block; }
   .store-main { width: calc(100% - 26px); padding-top: 15px; }
   .store-page-main { width: calc(100% - 26px); padding-top: 18px; }
   .store-profile-main { width: calc(100% - 26px); padding-top: 16px; }
@@ -305,7 +365,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .store-profile-heading { padding-top: 10px; }
   .store-profile-heading h1 { font-size: 20px; }
   .store-profile-heading .store-account-meta { max-width: 190px; overflow-wrap: anywhere; font-size: 9px; }
-  .store-profile-identity > .store-text-button { align-self: flex-end; margin-bottom: 0; padding: 6px 8px; font-size: 9px; white-space: nowrap; }
   .store-profile-tabs { gap: 0; margin-bottom: 14px; }
   .store-profile-tabs button { padding: 12px 10px 10px; font-size: 10px; }
   .store-profile-details { padding: 18px 14px; }

@@ -3,6 +3,7 @@ import {
   addCustomerAddress, deleteCustomerAddress, getCustomerAccount, updateCustomerAddress, updateCustomerProfile
 } from "../models/customerAccountModel.js";
 import { readCart } from "../models/storefrontModel.js";
+import { initializeCustomerMenu, renderCustomerMenu } from "../models/customerMenuModel.js";
 import {
   formatVietnamAddress, initializeVietnamAddressFields, readVietnamAddressForm, renderVietnamAddressFields
 } from "../models/vietnamAddressModel.js";
@@ -31,7 +32,7 @@ function renderShell() {
       <nav class="store-nav" aria-label="Điều hướng chính">
         <a href="/">Sản phẩm</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng (<span id="account-cart-count">0</span>)</a>
-        <a class="store-cart-link" href="account.html">Tài khoản</a>
+        ${renderCustomerMenu(session)}
       </nav>
     </header>
     <main class="store-profile-main">
@@ -45,7 +46,6 @@ function renderShell() {
             <h1 id="account-greeting">Đang tải tài khoản...</h1>
             <p id="account-meta" class="store-account-meta"></p>
           </div>
-          <button class="store-text-button" id="account-signout" type="button">Đăng xuất</button>
         </div>
       </section>
       <nav class="store-profile-tabs" role="tablist" aria-label="Các mục tài khoản">
@@ -70,10 +70,7 @@ function renderShell() {
     if (event.key === "woodcraft-customer-cart") updateCartCount();
   });
   window.addEventListener("woodcraft-cart-expired", updateCartCount);
-  document.querySelector("#account-signout").addEventListener("click", () => {
-    signOutCustomer();
-    window.location.assign("/");
-  });
+  initializeCustomerMenu(document.querySelector(".store-nav"));
   return true;
 }
 

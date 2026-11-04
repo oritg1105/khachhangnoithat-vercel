@@ -2,6 +2,7 @@ import {
   getCartDetails, getStoreProducts, readCart, saveCart
 } from "../models/storefrontModel.js";
 import { getCustomerSession } from "../models/customerAuthModel.js";
+import { initializeCustomerMenu, renderCustomerMenu } from "../models/customerMenuModel.js";
 
 let products = [];
 let cart = readCart();
@@ -35,7 +36,7 @@ function renderPage() {
         <a href="/">Sản phẩm</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng (<span id="cart-header-count">0</span>)</a>
         ${session
-      ? `<a class="store-cart-link" href="account.html">${escapeHtml(session.user.username)}</a>`
+      ? renderCustomerMenu(session)
       : `<a class="store-cart-link" href="customer-login.html">Đăng nhập</a>`}
       </nav>
     </header>
@@ -84,6 +85,7 @@ function renderPage() {
   document.querySelector("#cart-remove-dialog").addEventListener("cancel", () => {
     pendingRemovalId = null;
   });
+  initializeCustomerMenu(document.querySelector(".store-nav"));
 }
 
 function updateCart() {

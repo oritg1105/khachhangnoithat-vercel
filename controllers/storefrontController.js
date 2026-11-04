@@ -2,6 +2,7 @@ import {
   getStoreProducts, readCart, saveCart
 } from "../models/storefrontModel.js";
 import { getCustomerSession } from "../models/customerAuthModel.js";
+import { initializeCustomerMenu, renderCustomerMenu } from "../models/customerMenuModel.js";
 
 let products = [];
 let cart = readCart();
@@ -36,12 +37,8 @@ function showToast(message) {
 function renderCustomerHeader() {
   const session = getCustomerSession();
   const control = document.querySelector("#store-account-control");
-  control.innerHTML = session
-    ? `<a class="store-cart-link" href="account.html">${escapeHtml(session.user.username)}</a>`
-    : `<div class="store-auth-actions">
-        <a class="store-cart-link" href="customer-login.html">Đăng nhập</a>
-        <a class="store-cart-link store-register-link" href="customer-register.html">Đăng ký</a>
-      </div>`;
+  control.innerHTML = renderCustomerMenu(session);
+  initializeCustomerMenu(control);
 }
 
 function distinctValues(key) {
@@ -209,7 +206,7 @@ function renderPage() {
         <a href="#store-catalog">Sản phẩm</a>
         <a href="#store-footer">Về Woodcraft</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng (<span id="store-header-count">0</span>)</a>
-        <span id="store-account-control"></span>
+        <div id="store-account-control"></div>
       </nav>
     </header>
     <main class="store-main">
