@@ -3,7 +3,7 @@ import {
   addCustomerAddress, deleteCustomerAddress, getCustomerAccount, updateCustomerAddress, updateCustomerProfile
 } from "../models/customerAccountModel.js";
 import { readCart } from "../models/storefrontModel.js";
-import { initializeCustomerMenu, renderCustomerMenu } from "../models/customerMenuModel.js";
+import { initializeStoreNavigation, renderStoreNavigation } from "../models/customerMenuModel.js";
 import {
   formatVietnamAddress, initializeVietnamAddressFields, readVietnamAddressForm, renderVietnamAddressFields
 } from "../models/vietnamAddressModel.js";
@@ -29,11 +29,10 @@ function renderShell() {
   document.querySelector("#account-app").innerHTML = `
     <header class="store-header">
       <a class="store-brand" href="/">WOODCRAFT<span>NỘI THẤT GỖ · CỬA HÀNG</span></a>
-      <nav class="store-nav" aria-label="Điều hướng chính">
+      ${renderStoreNavigation(session, `
         <a href="/">Sản phẩm</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng (<span id="account-cart-count">0</span>)</a>
-        ${renderCustomerMenu(session)}
-      </nav>
+      `, "", "account-navigation-menu")}
     </header>
     <main class="store-profile-main">
       <a class="store-page-back" href="/">← Quay lại cửa hàng</a>
@@ -70,7 +69,7 @@ function renderShell() {
     if (event.key === "woodcraft-customer-cart") updateCartCount();
   });
   window.addEventListener("woodcraft-cart-expired", updateCartCount);
-  initializeCustomerMenu(document.querySelector(".store-nav"));
+  initializeStoreNavigation(document.querySelector(".store-nav"));
   return true;
 }
 

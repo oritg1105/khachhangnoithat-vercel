@@ -8,7 +8,7 @@ import {
 import {
   formatVietnamAddress, initializeVietnamAddressFields, readVietnamAddressForm, renderVietnamAddressFields
 } from "../models/vietnamAddressModel.js";
-import { initializeCustomerMenu, renderCustomerMenu } from "../models/customerMenuModel.js";
+import { initializeStoreNavigation, renderStoreNavigation } from "../models/customerMenuModel.js";
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -66,13 +66,10 @@ function renderShell() {
   document.querySelector("#checkout-app").innerHTML = `
     <header class="store-header">
       <a class="store-brand" href="/">WOODCRAFT<span>NỘI THẤT GỖ · CỬA HÀNG</span></a>
-      <nav class="store-nav" aria-label="Điều hướng chính">
+      ${renderStoreNavigation(session, `
         <a href="/">Sản phẩm</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng</a>
-        ${session
-          ? renderCustomerMenu(session)
-          : `<a class="store-cart-link" href="customer-login.html">Đăng nhập</a>`}
-      </nav>
+      `, "", "checkout-navigation-menu")}
     </header>
     <main class="store-page-main">
       <a class="store-page-back" href="cart.html">← Quay lại giỏ hàng</a>
@@ -84,7 +81,7 @@ function renderShell() {
       </section>
     </main>
     <footer class="store-footer">Woodcraft · Nội thất gỗ cho không gian sống của bạn</footer>`;
-  initializeCustomerMenu(document.querySelector(".store-nav"));
+  initializeStoreNavigation(document.querySelector(".store-nav"));
 }
 
 function renderCheckout(account, items, quote) {

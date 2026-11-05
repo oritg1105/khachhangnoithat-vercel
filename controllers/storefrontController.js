@@ -2,7 +2,7 @@ import {
   getStoreProducts, readCart, saveCart
 } from "../models/storefrontModel.js";
 import { getCustomerSession } from "../models/customerAuthModel.js";
-import { initializeCustomerMenu, renderCustomerMenu } from "../models/customerMenuModel.js";
+import { initializeStoreNavigation, renderStoreNavigation } from "../models/customerMenuModel.js";
 
 let products = [];
 let cart = readCart();
@@ -32,13 +32,6 @@ function showToast(message) {
   toastTimer = setTimeout(() => {
     toast.hidden = true;
   }, 2800);
-}
-
-function renderCustomerHeader() {
-  const session = getCustomerSession();
-  const control = document.querySelector("#store-account-control");
-  control.innerHTML = renderCustomerMenu(session);
-  initializeCustomerMenu(control);
 }
 
 function distinctValues(key) {
@@ -202,12 +195,12 @@ function renderPage() {
   document.querySelector("#store-app").innerHTML = `
     <header class="store-header">
       <a class="store-brand" href="/">WOODCRAFT<span>NỘI THẤT GỖ · CỬA HÀNG</span></a>
-      <nav class="store-nav" aria-label="Điều hướng chính">
+      ${renderStoreNavigation(getCustomerSession(), `
         <a href="#store-catalog">Sản phẩm</a>
-        <a href="#store-footer">Về Woodcraft</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng (<span id="store-header-count">0</span>)</a>
-        <div id="store-account-control"></div>
-      </nav>
+      `, `
+        <a href="#store-footer">Về Woodcraft</a>
+      `, "store-navigation-menu")}
     </header>
     <main class="store-main">
       <section class="store-hero">
@@ -314,7 +307,7 @@ function renderPage() {
     renderCart();
     showToast("Giỏ hàng đã được xóa sau 5 phút.");
   });
-  renderCustomerHeader();
+  initializeStoreNavigation(document.querySelector(".store-nav"));
 }
 
 async function startStorefront() {

@@ -13,22 +13,42 @@ export function renderCustomerMenu(session) {
   }
 
   const username = escapeHtml(session.user.username);
-  return `<div class="store-customer-menu">
-    <div class="store-customer-actions-desktop">
-      <a class="store-customer-profile" href="account.html">${username}</a>
-      <button class="store-customer-logout" type="button" data-customer-signout>Đăng xuất</button>
-    </div>
-    <details class="store-customer-dropdown">
-      <summary aria-label="Mở menu tài khoản"><span>Tài khoản</span><span aria-hidden="true">⌄</span></summary>
-      <div class="store-customer-dropdown-panel">
-        <a href="account.html">Hồ sơ khách hàng</a>
-        <button type="button" data-customer-signout>Đăng xuất</button>
-      </div>
-    </details>
-  </div>`;
+  return `<a class="store-customer-profile" href="account.html">${username}</a>
+    <button class="store-customer-logout" type="button" data-customer-signout>Đăng xuất</button>`;
 }
 
-export function initializeCustomerMenu(container) {
+export function renderStoreNavigation(session, primaryLinks, secondaryLinks, menuId) {
+  return `<nav class="store-nav" aria-label="Điều hướng chính">
+    <div class="store-nav-primary">${primaryLinks}</div>
+    <button class="store-menu-toggle" type="button" aria-label="Mở menu điều hướng" aria-expanded="false" aria-controls="${menuId}">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="store-nav-secondary" id="${menuId}">
+      ${secondaryLinks}
+      ${renderCustomerMenu(session)}
+    </div>
+  </nav>`;
+}
+
+export function initializeStoreNavigation(container) {
+  const toggle = container.querySelector(".store-menu-toggle");
+  const closeMenu = () => {
+    container.classList.remove("is-open");
+    toggle.setAttribute("aria-expanded", "false");
+  };
+  toggle.addEventListener("click", () => {
+    const isOpen = container.classList.toggle("is-open");
+    toggle.setAttribute("aria-expanded", String(isOpen));
+  });
+  container.querySelectorAll(".store-nav-secondary a").forEach(link =>
+    link.addEventListener("click", closeMenu)
+  );
+  document.addEventListener("click", event => {
+    if (!container.contains(event.target)) closeMenu();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeMenu();
+  });
   container.querySelectorAll("[data-customer-signout]").forEach(button => {
     button.addEventListener("click", () => {
       signOutCustomer();

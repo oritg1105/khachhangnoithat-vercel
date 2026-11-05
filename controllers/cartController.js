@@ -2,7 +2,7 @@ import {
   getCartDetails, getStoreProducts, readCart, saveCart
 } from "../models/storefrontModel.js";
 import { getCustomerSession } from "../models/customerAuthModel.js";
-import { initializeCustomerMenu, renderCustomerMenu } from "../models/customerMenuModel.js";
+import { initializeStoreNavigation, renderStoreNavigation } from "../models/customerMenuModel.js";
 
 let products = [];
 let cart = readCart();
@@ -32,13 +32,10 @@ function renderPage() {
   document.querySelector("#cart-app").innerHTML = `
     <header class="store-header">
       <a class="store-brand" href="/">WOODCRAFT<span>NỘI THẤT GỖ · CỬA HÀNG</span></a>
-      <nav class="store-nav" aria-label="Điều hướng chính">
+      ${renderStoreNavigation(session, `
         <a href="/">Sản phẩm</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng (<span id="cart-header-count">0</span>)</a>
-        ${session
-      ? renderCustomerMenu(session)
-      : `<a class="store-cart-link" href="customer-login.html">Đăng nhập</a>`}
-      </nav>
+      `, "", "cart-navigation-menu")}
     </header>
     <main class="store-page-main">
       <a class="store-page-back" href="/">← Tiếp tục mua sắm</a>
@@ -85,7 +82,7 @@ function renderPage() {
   document.querySelector("#cart-remove-dialog").addEventListener("cancel", () => {
     pendingRemovalId = null;
   });
-  initializeCustomerMenu(document.querySelector(".store-nav"));
+  initializeStoreNavigation(document.querySelector(".store-nav"));
 }
 
 function updateCart() {
