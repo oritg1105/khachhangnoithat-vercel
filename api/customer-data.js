@@ -1,4 +1,5 @@
 const { customerDatabaseRequest, getCustomerPublicConfig } = require("../lib/customerSession.js");
+const { getActiveProductDiscounts } = require("../lib/customerPromotions.js");
 
 const TABLES = [
   ["SANPHAM", "sanpham?select=id_sanpham,tensanpham,dongia,soluong,id_kieudang,id_mago,hinhanh,mota,trangthai"],
@@ -19,8 +20,10 @@ async function loadCatalog(config) {
   catalogRequest = Promise.all(TABLES.map(async ([name, endpoint]) => [
     name,
     await customerDatabaseRequest(config, `/rest/v1/${endpoint}`)
-  ])).then(entries => {
-    catalogCache = Object.fromEntries(entries);
+  ])).then(async entries => {
+    const data = Object.fromEntries(entries);
+    data.KHUYENMAI_SP = await getActiveProductDiscounts(config, data.SANPHAM);
+    catalogCache = data;
     catalogCacheExpiresAt = Date.now() + CATALOG_CACHE_TTL_MS;
     return catalogCache;
   }).finally(() => {

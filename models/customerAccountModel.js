@@ -25,8 +25,8 @@ export function getCustomerAccount() {
   return requestAccount("GET");
 }
 
-export function updateCustomerProfile(fullName, phone) {
-  return requestAccount("PATCH", { action: "profile", fullName, phone });
+export function updateCustomerProfile(fullName, phone, field) {
+  return requestAccount("PATCH", { action: "profile", fullName, phone, field });
 }
 
 export function addCustomerAddress(address) {

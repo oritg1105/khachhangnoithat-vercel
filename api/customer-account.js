@@ -1,6 +1,7 @@
 const {
   customerDatabaseRequest, getAuthenticatedCustomer, getCustomerConfig, statusFor
 } = require("../lib/customerSession.js");
+const { normalizeCustomerName, normalizeVietnamesePhone } = require("../lib/customerValidation.js");
 
 async function loadCustomer(config, customerId) {
   const rows = await customerDatabaseRequest(
@@ -144,10 +145,27 @@ module.exports = async function handler(request, response) {
     }
 
     if (request.method === "PATCH" && action === "profile") {
-      const fullName = String(request.body?.fullName || "").trim();
-      const phone = String(request.body?.phone || "").trim();
-      if (!fullName || fullName.length > 120 || phone.length > 30) {
-        return response.status(400).json({ error: "Họ tên bắt buộc; số điện thoại tối đa 30 ký tự." });
+      const field = request.body?.field;
+      const fullName = normalizeCustomerName(request.body?.fullName);
+      const phoneText = typeof request.body?.phone === "string" ? request.body.phone.trim() : "";
+      let updates;
+      if (field === "fullName") {
+        if (!fullName) {
+          return response.status(400).json({ error: "Họ tên cần từ 2 đến 120 ký tự chữ, cách nhau bằng khoảng trắng, dấu nháy hoặc gạch nối." });
+        }
+        updates = { hoten: fullName };
+      } else if (field === "phone") {
+        const phone = normalizeVietnamesePhone(phoneText);
+        if (!phone) {
+          return response.status(400).json({ error: "Số điện thoại Việt Nam không hợp lệ. Hãy nhập số di động 10 số hoặc số cố định đầu 02." });
+        }
+        updates = { sdt: phone };
+      } else {
+        const phone = phoneText ? normalizeVietnamesePhone(phoneText) : null;
+        if (!fullName || (phoneText && !phone)) {
+          return response.status(400).json({ error: "Họ tên hoặc số điện thoại không đúng định dạng." });
+        }
+        updates = { hoten: fullName, sdt: phone };
       }
       const result = await customerDatabaseRequest(
         config,
@@ -155,7 +173,7 @@ module.exports = async function handler(request, response) {
         {
           method: "PATCH",
           prefer: "return=representation",
-          body: { hoten: fullName, sdt: phone || null }
+          body: updates
         }
       );
       if (!result?.[0]) return response.status(403).json({ error: "Không thể cập nhật hồ sơ khách hàng." });

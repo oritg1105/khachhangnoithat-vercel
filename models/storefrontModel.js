@@ -1,6 +1,6 @@
 const CART_KEY = "woodcraft-customer-cart";
 const CART_UPDATED_AT_KEY = "woodcraft-customer-cart-updated-at";
-const CART_TTL_MS = 5 * 60 * 1000;
+const CART_TTL_MS = 30 * 60 * 1000;
 let cartExpirationTimer;
 
 function clearStoredCart(notify = false) {
@@ -43,10 +43,14 @@ export async function getStoreProducts() {
   const categories = data.LOAISP || [];
   const styles = data.KIEUDANG || [];
   const woods = data.LOAIGO || [];
+  const productDiscounts = data.KHUYENMAI_SP || {};
   return (data.SANPHAM || [])
     .filter(item => Number(item.trangthai ?? 1) === 1 && Number(item.soluong) > 0)
     .map(item => {
       const style = styles.find(entry => Number(entry.id_kieudang) === Number(item.id_kieudang)) || {};
+      const originalPrice = Math.max(0, Number(item.dongia) || 0);
+      const promotion = productDiscounts[item.id_sanpham];
+      const discountPercent = Number(promotion?.percent) || 0;
       return {
         rawId: Number(item.id_sanpham),
         id: `SP${String(item.id_sanpham).padStart(3, "0")}`,
@@ -62,7 +66,10 @@ export async function getStoreProducts() {
         woodId: item.id_mago,
         category: categories.find(entry => Number(entry.id_loaisp) === Number(style.id_loaisp))?.tenloai || "",
         wood: woods.find(entry => Number(entry.id_mago) === Number(item.id_mago))?.tengo || "",
-        price: Math.max(0, Number(item.dongia) || 0),
+        price: originalPrice * (1 - discountPercent / 100),
+        originalPrice,
+        discountPercent,
+        discountName: promotion?.campaignName || "",
         stock: Math.max(0, Number(item.soluong) || 0),
         status: Number(item.trangthai ?? 1) === 0 ? "Đã khóa" : "Đang sử dụng",
         trangThai: Number(item.trangthai ?? 1)

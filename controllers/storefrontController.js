@@ -23,6 +23,13 @@ const formatMoney = value => new Intl.NumberFormat("vi-VN", {
   style: "currency", currency: "VND", maximumFractionDigits: 0
 }).format(value);
 
+function renderProductPrice(product, className) {
+  const discount = Number(product.discountPercent) || 0;
+  return `<span class="${className}">${formatMoney(product.price)}</span>${discount > 0
+    ? `<span class="store-discount-price"><del>${formatMoney(product.originalPrice)}</del><small>−${discount}%${product.discountName ? ` · ${escapeHtml(product.discountName)}` : ""}</small></span>`
+    : ""}`;
+}
+
 function showToast(message) {
   const toast = document.querySelector("#store-toast");
   if (!toast) return;
@@ -115,7 +122,7 @@ function renderProductCards() {
         <h3>${escapeHtml(product.name)}</h3>
         <p class="store-card-detail">${escapeHtml(product.style || "Thiết kế Woodcraft")}</p>
         <div class="store-card-bottom">
-          <span class="store-price">${formatMoney(product.price)}</span>
+          <div class="store-price-stack">${renderProductPrice(product, "store-price")}</div>
           <div class="store-card-actions">
             <button class="store-button secondary" type="button" data-details="${product.rawId}">Chi tiết</button>
             <button class="store-button" type="button" data-add="${product.rawId}" ${product.stock < 1 ? "disabled" : ""}>Thêm giỏ</button>
@@ -152,7 +159,7 @@ function showProductDetails(id) {
     ${product.image ? `<img class="store-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}">` : ""}
     <p>${escapeHtml(product.description || "Sản phẩm nội thất gỗ Woodcraft.")}</p>
     <p>${product.style ? `Kiểu dáng: ${escapeHtml(product.style)}<br>` : ""}${product.wood ? `Chất liệu: ${escapeHtml(product.wood)}<br>` : ""}Tồn kho: ${product.stock}</p>
-    <p class="store-dialog-price">${formatMoney(product.price)}</p>
+    <div class="store-dialog-price">${renderProductPrice(product, "store-price")}</div>
     <button class="store-button" type="button" data-detail-add="${product.rawId}" ${product.stock < 1 ? "disabled" : ""}>Thêm vào giỏ hàng</button>`;
   const dialog = document.querySelector("#store-detail-dialog");
   dialog.querySelector(".store-image")?.addEventListener("error", event => {
@@ -198,9 +205,7 @@ function renderPage() {
       ${renderStoreNavigation(getCustomerSession(), `
         <a href="#store-catalog">Sản phẩm</a>
         <a class="store-cart-link" href="cart.html">Giỏ hàng (<span id="store-header-count">0</span>)</a>
-      `, `
-        <a href="#store-footer">Về Woodcraft</a>
-      `, "store-navigation-menu")}
+      `, "", "store-navigation-menu")}
     </header>
     <main class="store-main">
       <section class="store-hero">
@@ -305,7 +310,7 @@ function renderPage() {
   window.addEventListener("woodcraft-cart-expired", () => {
     cart = [];
     renderCart();
-    showToast("Giỏ hàng đã được xóa sau 5 phút.");
+    showToast("Giỏ hàng đã được xóa sau 30 phút không hoạt động.");
   });
   initializeStoreNavigation(document.querySelector(".store-nav"));
 }

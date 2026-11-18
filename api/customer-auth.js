@@ -3,6 +3,7 @@ const {
   createCustomerSession, createCustomerSessionError, createHttpError, customerDatabaseRequest,
   getCustomerConfig, signCustomerToken, statusFor, verifyCustomerToken
 } = require("../lib/customerSession.js");
+const { normalizeCustomerName, normalizeVietnamesePhone } = require("../lib/customerValidation.js");
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{3,40}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -78,12 +79,13 @@ module.exports = async function handler(request, response) {
   try {
     if (action === "signup") {
       const { username, password } = validateCredentials(request.body?.username, request.body?.password);
-      const fullName = typeof request.body?.fullName === "string" ? request.body.fullName.trim() : "";
-      const phone = typeof request.body?.phone === "string" ? request.body.phone.trim() : "";
+      const fullName = normalizeCustomerName(request.body?.fullName);
+      const phone = normalizeVietnamesePhone(request.body?.phone);
       const email = typeof request.body?.email === "string" ? request.body.email.trim().toLowerCase() : "";
-      if (!fullName || fullName.length > 120 || phone.length > 30 ||
-          (email && (email.length > 254 || !EMAIL_PATTERN.test(email)))) {
-        throw createHttpError(400, "Họ tên, số điện thoại hoặc email không hợp lệ.");
+      if (!fullName) throw createHttpError(400, "Họ tên cần từ 2 đến 120 ký tự chữ, cách nhau bằng khoảng trắng, dấu nháy hoặc gạch nối.");
+      if (!phone) throw createHttpError(400, "Số điện thoại Việt Nam không hợp lệ. Hãy nhập số di động 10 số hoặc số cố định đầu 02.");
+      if (email && (email.length > 254 || !EMAIL_PATTERN.test(email))) {
+        throw createHttpError(400, "Email không hợp lệ.");
       }
 
       await ensureUsernameAvailable(config, username);

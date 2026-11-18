@@ -109,7 +109,9 @@ function updateCart() {
           <span>${quantity}</span>
           <button type="button" data-cart-change="${product.rawId}" data-delta="1" aria-label="Tăng số lượng" ${quantity >= product.stock ? "disabled" : ""}>+</button>
         </div></td>
-        <td>${formatMoney(product.price * quantity)}</td>
+        <td>${formatMoney(product.price * quantity)}${product.discountPercent
+          ? `<small class="store-cart-discount">Giá gốc ${formatMoney(product.originalPrice * quantity)} · Tự giảm ${product.discountPercent}%</small>`
+          : ""}</td>
         <td><button class="store-remove" type="button" data-remove="${product.rawId}">Xóa</button></td>
       </tr>`).join("")}</tbody>
     </table></div>` : `<div class="store-cart-empty">Giỏ hàng đang trống. Hãy chọn món đồ phù hợp cho không gian của bạn.</div>`;
@@ -189,12 +191,12 @@ async function loadCartProducts() {
 renderPage();
 renderPendingCart();
 if (new URLSearchParams(window.location.search).get("expired") === "1") {
-  showToast("Giỏ hàng đã được xóa sau 5 phút.");
+  showToast("Giỏ hàng đã được xóa sau 30 phút không hoạt động.");
 }
 window.addEventListener("woodcraft-cart-expired", () => {
   cart = [];
   updateCart();
-  showToast("Giỏ hàng đã được xóa sau 5 phút.");
+  showToast("Giỏ hàng đã được xóa sau 30 phút không hoạt động.");
 });
 window.addEventListener("storage", event => {
   if (event.key === "woodcraft-customer-cart") {

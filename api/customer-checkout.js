@@ -26,10 +26,10 @@ module.exports = async function handler(request, response) {
   const selectedPromotion = request.body?.selectedPromotion ?? null;
   const addressId = Number(request.body?.addressId);
   if (!Array.isArray(requestedItems) || requestedItems.length < 1 || requestedItems.length > 30 ||
-      requestedItems.some(item => !item || typeof item !== "object" ||
-        !Number.isSafeInteger(Number(item.id_sanPham)) || Number(item.id_sanPham) < 1 ||
-        !Number.isInteger(Number(item.soLuong)) || Number(item.soLuong) < 1 || Number(item.soLuong) > 100) ||
-      (!isQuoteRequest && (!Number.isSafeInteger(addressId) || addressId < 1))) {
+    requestedItems.some(item => !item || typeof item !== "object" ||
+      !Number.isSafeInteger(Number(item.id_sanPham)) || Number(item.id_sanPham) < 1 ||
+      !Number.isInteger(Number(item.soLuong)) || Number(item.soLuong) < 1 || Number(item.soLuong) > 100) ||
+    (!isQuoteRequest && (!Number.isSafeInteger(addressId) || addressId < 1))) {
     return response.status(400).json({ error: "Giỏ hàng hoặc địa chỉ giao hàng không hợp lệ." });
   }
   const quantities = new Map();
@@ -44,7 +44,7 @@ module.exports = async function handler(request, response) {
       : NaN;
     const quantity = (quantities.get(id) || 0) + itemQuantity;
     if (!Number.isSafeInteger(id) || id < 1 ||
-        !Number.isInteger(itemQuantity) || itemQuantity < 1 || itemQuantity > 100) {
+      !Number.isInteger(itemQuantity) || itemQuantity < 1 || itemQuantity > 100) {
       return response.status(400).json({ error: "Mã hoặc số lượng sản phẩm không hợp lệ." });
     }
     if (quantity > 100) {
@@ -57,9 +57,9 @@ module.exports = async function handler(request, response) {
     const expectedItems = request.body.expectedItems;
     const expectedQuantities = new Map();
     if (!Array.isArray(expectedItems) || expectedItems.length > 30 ||
-        expectedItems.some(item => !item || typeof item !== "object" ||
-          !Number.isSafeInteger(Number(item.id_sanPham)) || Number(item.id_sanPham) < 1 ||
-          !Number.isInteger(Number(item.soLuong)) || Number(item.soLuong) < 1 || Number(item.soLuong) > 100)) {
+      expectedItems.some(item => !item || typeof item !== "object" ||
+        !Number.isSafeInteger(Number(item.id_sanPham)) || Number(item.id_sanPham) < 1 ||
+        !Number.isInteger(Number(item.soLuong)) || Number(item.soLuong) < 1 || Number(item.soLuong) > 100)) {
       return response.status(409).json({ error: "Giỏ hàng đã thay đổi. Vui lòng tải lại trang thanh toán." });
     }
     for (const item of expectedItems) {
@@ -106,23 +106,26 @@ module.exports = async function handler(request, response) {
       const price = Number(product?.dongia);
       const stock = Number(product?.soluong);
       if (!product || Number(product.trangthai ?? 1) !== 1 ||
-          !Number.isSafeInteger(stock) || stock < item.soluong ||
-          !Number.isFinite(price) || price < 0) {
+        !Number.isSafeInteger(stock) || stock < item.soluong ||
+        !Number.isFinite(price) || price < 0) {
         throw createHttpError(409, "Sản phẩm không còn đủ hàng hoặc đã ngừng bán. Vui lòng kiểm tra lại giỏ hàng.");
       }
       return { ...item, price, stock };
     });
 
     const quote = await buildPromotionQuote(config, orderLines, selectedPromotion);
-    if (!Number.isSafeInteger(quote.total) || !Number.isSafeInteger(quote.subtotal)) {
+    if (!Number.isSafeInteger(quote.total) || !Number.isSafeInteger(quote.subtotal) ||
+        !Number.isSafeInteger(quote.originalSubtotal)) {
       throw createHttpError(400, "Tổng tiền đơn hàng vượt quá giới hạn hợp lệ.");
     }
     if (isQuoteRequest) {
       return response.status(200).json({
         data: {
           subtotal: quote.subtotal,
+          originalSubtotal: quote.originalSubtotal,
           productDiscount: quote.productDiscount,
           invoiceDiscount: quote.invoiceDiscount,
+          voucherDiscount: quote.voucherDiscount,
           totalDiscount: quote.totalDiscount,
           total: quote.total,
           invoicePromotionName: quote.invoicePromotionName,
@@ -141,9 +144,11 @@ module.exports = async function handler(request, response) {
           lines: quote.lines.map(item => ({
             id_sanpham: item.id_sanpham,
             soluong: item.soluong,
+            originalSubtotal: item.originalSubtotal,
             subtotal: item.subtotal,
             productDiscount: item.productDiscount,
             productDiscountPercent: item.productDiscountPercent,
+            discountedUnitPrice: item.discountedUnitPrice,
             productPromotionName: item.productPromotionName,
             total: item.amountAfterProductDiscount
           }))
@@ -151,11 +156,11 @@ module.exports = async function handler(request, response) {
       });
     }
     if (request.body?.expectedTotal !== undefined &&
-        (!Number.isSafeInteger(Number(request.body.expectedTotal)) || Number(request.body.expectedTotal) !== quote.total)) {
+      (!Number.isSafeInteger(Number(request.body.expectedTotal)) || Number(request.body.expectedTotal) !== quote.total)) {
       throw createHttpError(409, "Giá hoặc khuyến mãi vừa thay đổi. Vui lòng tải lại trang thanh toán để xác nhận lại.");
     }
     if (request.body?.expectedPromotion !== undefined &&
-        JSON.stringify(request.body.expectedPromotion) !== JSON.stringify(quote.selectedPromotion)) {
+      JSON.stringify(request.body.expectedPromotion) !== JSON.stringify(quote.selectedPromotion)) {
       throw createHttpError(409, "Lựa chọn khuyến mãi vừa thay đổi. Vui lòng tải lại trang thanh toán.");
     }
 
@@ -238,7 +243,7 @@ module.exports = async function handler(request, response) {
         id_sanpham: item.id_sanpham,
         id_hoadon: orderId,
         soluong: item.soluong,
-        dongia: item.price,
+        dongia: promotionByProductId.get(item.id_sanpham).discountedUnitPrice,
         thanhtien: promotionByProductId.get(item.id_sanpham).amountAfterProductDiscount,
         id_mactkm: promotionByProductId.get(item.id_sanpham).productPromotionId
       }))

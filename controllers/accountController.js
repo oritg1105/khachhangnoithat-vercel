@@ -7,6 +7,9 @@ import { initializeStoreNavigation, renderStoreNavigation } from "../models/cust
 import {
   formatVietnamAddress, initializeVietnamAddressFields, readVietnamAddressForm, renderVietnamAddressFields
 } from "../models/vietnamAddressModel.js";
+import {
+  normalizeCustomerName, normalizeVietnamesePhone
+} from "../models/customerValidationModel.js";
 
 let customerAccount = null;
 const requestedTab = new URLSearchParams(window.location.search).get("tab");
@@ -225,7 +228,7 @@ function renderProfileEditor(field) {
     <label class="store-profile-label" for="account-profile-${field}">${label}</label>
     <span class="store-profile-value">
       <input id="account-profile-${field}" name="value" value="${escapeHtml(currentValue)}"
-        ${isName ? 'maxlength="120" required' : 'type="tel" maxlength="30"'} autocomplete="${isName ? "name" : "tel"}">
+        ${isName ? 'minlength="2" maxlength="120" required' : 'type="tel" inputmode="tel" maxlength="24" placeholder="Ví dụ: 0912345678" required'} autocomplete="${isName ? "name" : "tel"}">
       <span class="store-form-message" role="alert" hidden></span>
     </span>
     <span class="store-profile-edit-actions">
@@ -275,16 +278,21 @@ async function submitProfileUpdate(event, field) {
   const value = String(new FormData(form).get("value") || "").trim();
   const messageNode = form.querySelector(".store-form-message");
   const button = form.querySelector('[type="submit"]');
-  if (field === "fullName" && !value) {
-    messageNode.textContent = "Họ và tên không được để trống.";
+  const normalizedValue = field === "fullName"
+    ? normalizeCustomerName(value)
+    : normalizeVietnamesePhone(value);
+  if (!normalizedValue) {
+    messageNode.textContent = field === "fullName"
+      ? "Họ tên chỉ gồm chữ, dấu tiếng Việt và khoảng trắng, dấu nháy hoặc gạch nối; dài từ 2 đến 120 ký tự."
+      : "Nhập số điện thoại Việt Nam hợp lệ: số di động 10 số hoặc số cố định đầu 02.";
     messageNode.hidden = false;
     return;
   }
-  const fullName = field === "fullName" ? value : customerAccount.profile.hoten || "";
-  const phone = field === "phone" ? value : customerAccount.profile.sdt || "";
+  const fullName = field === "fullName" ? normalizedValue : customerAccount.profile.hoten || "";
+  const phone = field === "phone" ? normalizedValue : customerAccount.profile.sdt || "";
   button.disabled = true;
   try {
-    await updateCustomerProfile(fullName, phone);
+    await updateCustomerProfile(fullName, phone, field);
     await refreshAccount();
     renderAccountTab("profile", `Đã cập nhật ${field === "fullName" ? "họ tên" : "số điện thoại"}.`);
   } catch (error) {

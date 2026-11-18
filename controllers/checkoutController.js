@@ -27,36 +27,33 @@ function renderOrderSummary(items, quote) {
   return `
     <h2>Tóm tắt đơn hàng</h2>
     <label class="store-field store-promotion-picker">
-      <span>Chọn tối đa một khuyến mãi (không bắt buộc)</span>
+      <span>Chọn voucher (không bắt buộc)</span>
       <select id="checkout-promotion">
-        <option value="" ${quote.selectedPromotion ? "" : "selected"}>Không áp dụng khuyến mãi</option>
+  <option value="" ${quote.selectedPromotion ? "" : "selected"}>Không dùng voucher</option>
         ${promotions.map(promotion => {
-          const value = selectedPromotionValue({ type: promotion.type, id: promotion.id });
-          const typeLabel = promotion.type === "product"
-            ? "Theo sản phẩm"
-            : promotion.type === "invoice"
-              ? "Theo hóa đơn"
-              : "Voucher";
-          const availability = promotion.available === undefined ? "" : ` · Còn ${promotion.available}`;
-          return `<option value="${escapeHtml(value)}" ${value === selectedPromotionValue(quote.selectedPromotion) ? "selected" : ""}>
-            ${escapeHtml(promotion.name)} · ${typeLabel} · Giảm ${escapeHtml(promotion.discountPercentLabel || "0%")} (${formatMoney(promotion.discount)})${availability}
+    const value = selectedPromotionValue({ type: promotion.type, id: promotion.id });
+    const availability = promotion.available === undefined ? "" : ` · Còn ${promotion.available}`;
+    return `<option value="${escapeHtml(value)}" ${value === selectedPromotionValue(quote.selectedPromotion) ? "selected" : ""}>
+      ${escapeHtml(promotion.name)} · Giảm ${escapeHtml(promotion.discountPercentLabel || "0%")} (${formatMoney(promotion.discount)})${availability}
           </option>`;
-        }).join("")}
+  }).join("")}
       </select>
     </label>
-    <p class="store-promotion-note">Mỗi đơn chỉ áp dụng một khuyến mãi. Bạn tự chọn ưu đãi muốn sử dụng.</p>
+    <p class="store-promotion-note">Ưu đãi theo sản phẩm tự động trừ vào giá. Voucher tùy chọn được tính trên giá sau giảm sản phẩm.</p>
     <div class="store-checkout-summary">
       ${items.map(({ product, quantity, quoteLine }) => `<div class="store-checkout-item">
         <span>${escapeHtml(product.name)} × ${quantity}${quoteLine.productDiscount
-          ? `<small>Giảm ${Number(quoteLine.productDiscountPercent)}% (${formatMoney(quoteLine.productDiscount)}) · ${escapeHtml(quoteLine.productPromotionName)}</small>`
-          : ""}</span>
+      ? `<small>Giá gốc ${formatMoney(quoteLine.originalSubtotal)} · Tự giảm ${Number(quoteLine.productDiscountPercent)}% (${formatMoney(quoteLine.productDiscount)}) · ${escapeHtml(quoteLine.productPromotionName)}</small>`
+      : ""}</span>
         <strong>${formatMoney(quoteLine.subtotal)}</strong>
       </div>`).join("")}
     </div>
-    <div class="store-checkout-total"><span>Tạm tính</span><strong>${formatMoney(quote.subtotal)}</strong></div>
+    <div class="store-checkout-total"><span>Tạm tính giá gốc</span><strong>${formatMoney(quote.originalSubtotal)}</strong></div>
+    <div class="store-checkout-total"><span>Giảm giá sản phẩm tự động</span><strong>−${formatMoney(quote.productDiscount)}</strong></div>
+    <div class="store-checkout-total"><span>Tạm tính sau giảm sản phẩm</span><strong>${formatMoney(quote.subtotal)}</strong></div>
     <div class="store-checkout-total">
-      <span>Khuyến mãi${quote.selectedPromotionName ? `<small>${escapeHtml(quote.selectedPromotionName)}</small>` : ""}</span>
-      <strong>${quote.totalDiscount ? `−${formatMoney(quote.totalDiscount)}` : formatMoney(0)}</strong>
+      <span>Voucher${quote.selectedPromotionName ? `<small>${escapeHtml(quote.selectedPromotionName)}</small>` : ""}</span>
+      <strong>−${formatMoney(quote.voucherDiscount)}</strong>
     </div>
     <div class="store-checkout-total"><span>Tổng thanh toán</span><strong>${formatMoney(quote.total)}</strong></div>`;
 }
@@ -271,8 +268,8 @@ async function loadCheckout() {
       <div class="store-empty">
         <p>Không thể tải trang thanh toán. ${escapeHtml(error.message)}</p>
         ${error.code?.startsWith("CUSTOMER_SESSION_") || error.code === "CUSTOMER_ACCOUNT_NOT_LINKED"
-          ? `<p>Mã chẩn đoán: ${escapeHtml(error.code)}</p><a class="store-button" href="customer-login.html?next=checkout.html">Đăng nhập lại</a>`
-          : ""}
+        ? `<p>Mã chẩn đoán: ${escapeHtml(error.code)}</p><a class="store-button" href="customer-login.html?next=checkout.html">Đăng nhập lại</a>`
+        : ""}
         <a class="store-button" href="cart.html">Quay lại giỏ hàng</a>
       </div>`;
   }

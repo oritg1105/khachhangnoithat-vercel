@@ -1,4 +1,7 @@
 import { signInCustomer, signUpCustomer } from "../models/customerAuthModel.js";
+import {
+  normalizeCustomerName, normalizeVietnamesePhone
+} from "../models/customerValidationModel.js";
 
 const root = document.querySelector("#customer-auth-app");
 const isRegistering = root.dataset.authMode === "signup";
@@ -24,8 +27,8 @@ function renderAuthPage() {
       : "Đăng nhập bằng tên đăng nhập để quản lý thông tin và đặt hàng COD."}</p>
       ${sessionExpired ? `<p class="store-auth-notice" role="status">Phiên đăng nhập cũ không còn hợp lệ. Đăng nhập lại để tiếp tục thanh toán; không cần tạo secret mới.</p>` : ""}
       <form id="customer-auth-form">
-        ${isRegistering ? `<label class="store-field"><span>Họ và tên</span><input name="fullName" autocomplete="name" maxlength="120" required></label>
-          <label class="store-field"><span>Số điện thoại</span><input name="phone" type="tel" autocomplete="tel" maxlength="30"></label>
+        ${isRegistering ? `<label class="store-field"><span>Họ và tên</span><input name="fullName" autocomplete="name" minlength="2" maxlength="120" required></label>
+          <label class="store-field"><span>Số điện thoại</span><input name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="24" placeholder="Ví dụ: 0912345678" required></label>
           <label class="store-field"><span>Tên đăng nhập</span><input name="username" autocomplete="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" required></label>
           <label class="store-field"><span>Email (không bắt buộc)</span><input name="email" type="email" autocomplete="email" maxlength="254"></label>` : `
           <label class="store-field"><span>Tên đăng nhập</span><input name="username" autocomplete="username" minlength="3" maxlength="40" required></label>`}
@@ -51,6 +54,14 @@ async function submitAuth(event) {
 
   try {
     if (isRegistering) {
+      values.fullName = normalizeCustomerName(values.fullName);
+      values.phone = normalizeVietnamesePhone(values.phone);
+      if (!values.fullName) {
+        throw new Error("Họ tên chỉ gồm chữ, dấu tiếng Việt và khoảng trắng, dấu nháy hoặc gạch nối; dài từ 2 đến 120 ký tự.");
+      }
+      if (!values.phone) {
+        throw new Error("Nhập số điện thoại Việt Nam hợp lệ: số di động 10 số hoặc số cố định đầu 02.");
+      }
       await signUpCustomer(values);
       window.location.assign("account.html");
     } else {
