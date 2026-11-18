@@ -55,8 +55,8 @@ async function ensureUsernameAvailable(config, username) {
 
 function validateCredentials(username, password) {
   if (typeof username !== "string" || !USERNAME_PATTERN.test(username.trim()) ||
-      typeof password !== "string" || password.length < 8 || password.length > 128) {
-    throw createHttpError(400, "Tên đăng nhập cần 3–40 ký tự chữ/số/._-; mật khẩu cần 8–128 ký tự.");
+      typeof password !== "string" || password.length < 6 || password.length > 128) {
+    throw createHttpError(400, "Tên đăng nhập cần 3–40 ký tự chữ/số/._-; mật khẩu cần 6–128 ký tự.");
   }
   return { username: username.trim().toLowerCase(), password };
 }

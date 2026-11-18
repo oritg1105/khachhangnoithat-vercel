@@ -29,7 +29,7 @@ function renderAuthPage() {
           <label class="store-field"><span>Tên đăng nhập</span><input name="username" autocomplete="username" minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" required></label>
           <label class="store-field"><span>Email (không bắt buộc)</span><input name="email" type="email" autocomplete="email" maxlength="254"></label>` : `
           <label class="store-field"><span>Tên đăng nhập</span><input name="username" autocomplete="username" minlength="3" maxlength="40" required></label>`}
-        <label class="store-field"><span>Mật khẩu</span><input name="password" type="password" autocomplete="${isRegistering ? "new-password" : "current-password"}" minlength="8" maxlength="128" required></label>
+        <label class="store-field"><span>Mật khẩu</span><input name="password" type="password" autocomplete="${isRegistering ? "new-password" : "current-password"}" minlength="6" maxlength="128" required></label>
         <button class="store-button customer-auth-submit" type="submit">${isRegistering ? "Đăng ký" : "Đăng nhập"}</button>
         <p class="store-form-message" id="customer-auth-message" role="alert" hidden></p>
       </form>
